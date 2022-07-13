@@ -5,8 +5,8 @@ TITLE Integer Accmulator    (Proj3_tanglon.asm)
 ; OSU email address: tanglon@oregonstate.edu
 ; Course number/section:   CS271 Section 400
 ; Project Number: 3                Due Date: 17 Jul 2022
-; Description: This project will ask for values (validated within boundaries) and display the minimum, maximum, 
-;			   average of the values, total sum and total number of valid inputs. 
+; Description: This project will ask for values (validated within boundaries) and display the minimum, maximum,
+;			   average of the values, total sum and total number of valid inputs.
 
 INCLUDE Irvine32.inc
 
@@ -38,7 +38,15 @@ intro4		BYTE	"Please enter numbers in [",  0
 comma		BYTE	", ",  0
 intro5		BYTE	"] or [",  0
 intro6		BYTE	"].",  0
-						
+intro7      BYTE    "Enter a non-negative number when you are finished to see results.",  0
+prompt2     BYTE    "Enter number: ",  0
+counter     BYTE    0                               ; store how many numbers have entered
+value       SDWORD  ?                               ; signed variable to store the negative value
+
+; for part 2: error messages
+warning1    BYTE    "Number Invalid!",  0
+
+
 
 .code
 main PROC
@@ -67,12 +75,12 @@ main PROC
 	CALL	ReadString								; ask for user's name
 	MOV		EDX,  OFFSET  greeting2
 	CALL	WriteString
-	MOV		EDX,  OFFSET  userName					
+	MOV		EDX,  OFFSET  userName
 	CALL	WriteString
 	CALL	CrLF
 
 	; part 2: Main Body (ask for user input for values, and do logical comparison)
-	
+
 	;--------------------------------------
 	; This part is for displaying the boundaries
 	;	this part is not hard coded as CONSTATNS may change, thus the values can also be changed accordingly
@@ -96,6 +104,65 @@ main PROC
 	CALL	WriteInt
 	MOV		EDX,  OFFSET  intro6
 	CALL	WriteString
+
+    ;--------------------------------------
+	; This part is for asking user input
+	;	acceptable input: -200 <= x <= -100 || -50 <= x <= -1
+	;--------------------------------------
+
+    MOV		EDX,  OFFSET  intro7
+	CALL	WriteString
+	MOV		EDX,  OFFSET  prompt2
+
+; ask for user input; jump back here if invalid input spotted
+_userInput:
+	CALL	WriteString
+	CALL    ReadInt
+
+	; check range [-200, -100]
+	CMP     EAX,  RANGE1_LOWER
+	JL      _invalid                          ; jump if input < -200
+	CMP     EAX,  RANGE1_UPPER
+	JG      _checkRange2Lower                 ; jump if input > -100
+	JMP     _again                            ; jump to _again since the logical operation is ||
+
+
+; jump here if the entered value is invalid
+_invalid:
+    MOV     EDX,  OFFSET  warning1
+    CALL    WriteString
+    JMP     _userInput
+
+; jump here if the entered value is valid
+_again:
+    INC     counter                         ; increment counter to count number of values entered
+    JMP     _userInput
+
+
+; jump here if the entered value is invalid (greater than -100)
+_checkRange2Lower:
+    CMP     EAX,  RANGE2_LOWER
+    JL      _invalid
+    CMP     EAX,  RANGE2_UPPER
+    JNS      _nonNegative
+    JMP     _again
+
+; part 3: Main Body (Displaying the results)
+
+; jump here if the entered value is non-negative, start displaying results
+_nonNegative:
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
