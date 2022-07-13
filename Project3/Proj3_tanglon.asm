@@ -42,6 +42,10 @@ intro7      BYTE    "Enter a non-negative number when you are finished to see re
 prompt2     BYTE    "Enter number: ",  0
 counter     BYTE    0                               ; store how many numbers have entered
 value       SDWORD  ?                               ; signed variable to store the negative value
+maxVal		SDWORD	?
+minVAL		SDWORD	?
+sum			SDWORD	?
+average		SDWORD	?
 
 ; for part 2: error messages
 warning1    BYTE    "Number Invalid!",  0
@@ -104,6 +108,7 @@ main PROC
 	CALL	WriteInt
 	MOV		EDX,  OFFSET  intro6
 	CALL	WriteString
+	CALL	CrLF
 
     ;--------------------------------------
 	; This part is for asking user input
@@ -112,17 +117,19 @@ main PROC
 
     MOV		EDX,  OFFSET  intro7
 	CALL	WriteString
-	MOV		EDX,  OFFSET  prompt2
-
+	CALL	CrLF
+	
 ; ask for user input; jump back here if invalid input spotted
 _userInput:
+	MOV		EDX,  OFFSET  prompt2
 	CALL	WriteString
 	CALL    ReadInt
+	MOV		value,  EAX
 
 	; check range [-200, -100]
-	CMP     EAX,  RANGE1_LOWER
+	CMP     value,  RANGE1_LOWER
 	JL      _invalid                          ; jump if input < -200
-	CMP     EAX,  RANGE1_UPPER
+	CMP     value,  RANGE1_UPPER
 	JG      _checkRange2Lower                 ; jump if input > -100
 	JMP     _again                            ; jump to _again since the logical operation is ||
 
@@ -131,7 +138,9 @@ _userInput:
 _invalid:
     MOV     EDX,  OFFSET  warning1
     CALL    WriteString
+	CALL	CrLF
     JMP     _userInput
+
 
 ; jump here if the entered value is valid
 _again:
@@ -141,29 +150,19 @@ _again:
 
 ; jump here if the entered value is invalid (greater than -100)
 _checkRange2Lower:
-    CMP     EAX,  RANGE2_LOWER
+    CMP     value,  RANGE2_LOWER
     JL      _invalid
-    CMP     EAX,  RANGE2_UPPER
-    JNS      _nonNegative
+    TEST    value,  RANGE2_UPPER			; using TEST here as CMP will modify the 1st operand, thus if CMP -1, RANGE2_UPPER, sign flag will set as 0 as the intermediate result is 0
+    JNS     _nonNegative
     JMP     _again
+
 
 ; part 3: Main Body (Displaying the results)
 
 ; jump here if the entered value is non-negative, start displaying results
 _nonNegative:
 
-
-
-
-
-
-
-
-
-
-
-
-
+	CALL CrLF
 
 
 
