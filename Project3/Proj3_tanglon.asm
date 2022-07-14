@@ -39,25 +39,39 @@ comma		BYTE	", ",  0
 intro5		BYTE	"] or [",  0
 intro6		BYTE	"].",  0
 intro7      BYTE    "Enter a non-negative number when you are finished to see results.",  0
-prompt2     BYTE    "Enter number: ",  0
-counter     BYTE    0                               ; store how many numbers have entered
-value       SDWORD  ?                               ; signed variable to store the negative value
-maxVal		SDWORD	?
-minVAL		SDWORD	?
-sum			SDWORD	?
+prompt2     BYTE    " - Enter number: ",  0
+extracd1    BYTE    "EC: Number the lines during user input"
+extracd2    BYTE    "Line ",  0
+
+countLine   BYTE    1
+counter     BYTE    0                               ; store how many numbers
+value       SWORD   ?                               ; signed variable to store the negative value; results...
+maxVal		SDWORD	-201                            ; initialize as the lowest possible value - 1
+minVAL		SDWORD	0                               ; initialize as the largest possible value + 1
+sum			SDWORD	0
 average		SDWORD	?
 
 ; for part 2: error messages
 warning1    BYTE    "Number Invalid!",  0
 
+; for part 3
+warning2    BYTE    "No numbers entered!",  0
+outcome1    BYTE    "You have entered ",  0
+outcome2    BYTE    " valid numbers.",  0
+outcome3    BYTE    "The maximum valid number is ",  0
+outcome4    BYTE    "The minimum valid number is ",  0
+outcome5    BYTE    "The sum of your valid numbers is ",  0
+outcome6    BYTE    "The rounded average is ",  0
 
+; for part 4
+farewell    BYTE    "We have to stop meeting like this. Farewell, ",  0
 
 .code
 main PROC
 
 ; (insert executable instructions here)
 
-	; part 1: Greetings and Introduction
+; part 1: Greetings and Introduction
 
 	MOV		EDX,  OFFSET  greeting1
 	CALL	WriteString
@@ -83,7 +97,7 @@ main PROC
 	CALL	WriteString
 	CALL	CrLF
 
-	; part 2: Main Body (ask for user input for values, and do logical comparison)
+; part 2: Main Body (ask for user input for values, and do logical comparison)
 
 	;--------------------------------------
 	; This part is for displaying the boundaries
@@ -118,9 +132,13 @@ main PROC
     MOV		EDX,  OFFSET  intro7
 	CALL	WriteString
 	CALL	CrLF
-	
-; ask for user input; jump back here if invalid input spotted
+
+; ask for user input; jump back here if non-zero is entered
 _userInput:
+    MOV     EDX,  OFFSET  extracd1                  ; prompt for extra credit
+    CALL	WriteString
+    MOV     EAX,  countLine
+    CALL    WriteDec
 	MOV		EDX,  OFFSET  prompt2
 	CALL	WriteString
 	CALL    ReadInt
@@ -128,10 +146,10 @@ _userInput:
 
 	; check range [-200, -100]
 	CMP     value,  RANGE1_LOWER
-	JL      _invalid                          ; jump if input < -200
+	JL      _invalid                                ; jump if input < -200
 	CMP     value,  RANGE1_UPPER
-	JG      _checkRange2Lower                 ; jump if input > -100
-	JMP     _again                            ; jump to _again since the logical operation is ||
+	JG      _checkRange2Lower                       ; jump if input > -100
+	JMP     _again                                  ; jump to _again since the logical operation is ||
 
 
 ; jump here if the entered value is invalid
@@ -144,29 +162,118 @@ _invalid:
 
 ; jump here if the entered value is valid
 _again:
-    INC     counter                         ; increment counter to count number of values entered
-    JMP     _userInput
+    INC     countLine
+    INC     counter                                 ; increment counter to count number of values entered
+    ADD     sum,  value
+    CMP     value,  maxVal
+    JG      changeMax                               ; check max & min value
+    JMP     checkMin
 
 
 ; jump here if the entered value is invalid (greater than -100)
 _checkRange2Lower:
     CMP     value,  RANGE2_LOWER
     JL      _invalid
-    TEST    value,  RANGE2_UPPER			; using TEST here as CMP will modify the 1st operand, thus if CMP -1, RANGE2_UPPER, sign flag will set as 0 as the intermediate result is 0
+    TEST    value,  RANGE2_UPPER			        ; using TEST here as CMP will modify the 1st operand, thus if CMP -1, RANGE2_UPPER, sign flag will set as 0 as the intermediate result is 0
     JNS     _nonNegative
     JMP     _again
 
 
-; part 3: Main Body (Displaying the results)
+; update max value
+_changeMax:
+    MOV     maxVal,  value
+    JMP     checkMin
 
-; jump here if the entered value is non-negative, start displaying results
+
+; check min value
+_checkMin:
+    CMP     value,  minVal
+    JL      _changeMin
+    JMP     _userInput
+
+
+; update min value
+_changeMin:
+    MOV     minVal,  value
+    JMP     _userInput
+
+
+; part 3: Main Body (Calculate average & displaying the results)
+
+; jump here if the entered value is non-negative
 _nonNegative:
 
-	CALL CrLF
+    ;--------------------------------------
+	; This part is for if counter = 0
+	;	display error message
+	;--------------------------------------
+	CMP     counter,  0
+	JZ      _noNumber
+
+    ;--------------------------------------
+	; This part is for calculating the average number
+	;	the average will be rounded up
+	;--------------------------------------
+
+    MOV     EAX,  sum                                ; move sum (dividend) into AX
+    CDD                                             ; sign-extend AX into DX
+    MOV     EBX,  counter                            ; move counter (divisor) into BX
+    IDIV    EBX
+    MOV     average,  EAX                            ; store quotient into AX
+    ADD     average,  EDX                            ; perform round up action
+
+    ; for displaying the results
+    MOV     EDX,  OFFSET  outcome1
+    CALL    WriteString
+    MOV     EAX,  counter                           ; display number of valid input
+    CALL    WriteDec
+    MOV     EDX,  OFFSET  outcome2
+    CALL    WriteString
+    CALL    CrLF
+
+    MOV     EDX,  OFFSET  outcome3
+    CALL    WriteString
+    MOV     EAX,  maxVal
+    CALL    WriteInt                                ; display max value
+    CALL    CrLF
+
+    MOV     EDX,  OFFSET  outcome4
+    CALL    WriteString
+    MOV     EAX,  minVal                            ; display min value
+    CALL    WriteInt
+    CALL    CrLF
+
+    MOV     EDX,  OFFSET  outcome5
+    CALL    WriteString
+    MOV     EAX,  sum                               ; display the sum
+    CALL    WriteInt
+    CALL    CrLF
+
+    MOV     EDX,  OFFSET  outcome6
+    CALL    WriteString
+    MOV     EAX,  average                           ; display the rounded average
+    CALL    WriteInt
+    CALL    CrLF
+    JMP     _bye
 
 
+ ; display no numbers entered and jump to _bye
+_noNumber:
+    MOV     EDX,  OFFSET  warning2
+    CALL    WriteString
+    JMP     _bye
 
-	Invoke ExitProcess,0	; exit to operating system
+
+; part 4: Ending
+_bye:
+    CALL    CrLF
+    MOV     EDX,  OFFSET  farewell
+    CALL    WriteString
+    MOV		EDX,  OFFSET  userName
+	CALL	WriteString
+
+	Invoke ExitProcess,0	                        ; exit to operating system
+	;http://masm32.com/board/index.php?topic=1226.15
 main ENDP
 
 ; (insert additional procedures here)
