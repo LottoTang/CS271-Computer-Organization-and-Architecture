@@ -1,7 +1,7 @@
 TITLE Integer Accmulator    (Proj3_tanglon.asm)
 
 ; Author: Long To Lotto Tang
-; Last Modified: 12th Jul 2022
+; Last Modified: 15th Jul 2022
 ; OSU email address: tanglon@oregonstate.edu
 ; Course number/section:   CS271 Section 400
 ; Project Number: 3                Due Date: 17 Jul 2022
@@ -22,6 +22,7 @@ RANGE2_UPPER = -1
 
 ; for part 4
 ROUNDUPVAL = 5
+EDGE_CASE = 9										; if the digit is 9, change the digit to 0 and set the larger digit + 1
 
 .data
 
@@ -283,9 +284,11 @@ _nonNegative:
 	MOV     firstDigit,  EAX
 	MOV     remainder,  EDX
 	CMP		EAX,  ROUNDUPVAL
-	JG		_roundUp
+	JGE		_roundUp
 	JMP		_noRoundUp
 
+
+; jump here if firstDigit (tenths) >= 5
 _roundUp:
 	MOV		EAX,  quotient
 	DEC		EAX
@@ -293,53 +296,107 @@ _roundUp:
 	CALL    CrLF
     JMP     _displayFloat
 
+; jump here if firstDigit (tenths) < 5
 _noRoundUp:
 	MOV		EAX,  quotient
 	CALL	WriteInt
 	CALL    CrLF
-    JMP     _bye
+    JMP     _displayFloat
 
-_displayFloat
+	;--------------------------------------
+	; This part is for extra credit 2: showing the average in nearest .01 without using FPU
+	;	extract each decimal places, do checking if round up is needed afterwards
+	;--------------------------------------
+
+; jump here to display current action
+_displayFloat:
     MOV     EDX,  OFFSET  extracd3
     CALL    WriteString
     CALL    CrLF
     MOV     EDX,  OFFSET  extracd4
     CALL    WriteString
+	JMP		_getSecondDigits
 
-_getSecondDigits:                                  ; for 2nd decimal digit
+; jump here to extract 2nd decimal digit (hundredths)
+_getSecondDigits:									
 	MOV		EAX,  remainder
-	MUL		posTenth
+	MUL		posTenth								; since the remainder is positive already; mul by positive 10 here and afterwards
 	CDQ
 	MOV		EBX,  counter
 	DIV		EBX
-    MOV     secondDigit,  EAX
-    MOV     remainder,  EDX
+    MOV     secondDigit,  EAX						; store the hundredths
+    MOV     remainder,  EDX							
     JMP     _getThirdDigits
 
 
-_getThirdDigits:                                  ; for 3rd decimal digit
+; jump here to extract 3rd decimal digit (thousandths)
+_getThirdDigits:									
 	MOV		EAX,  remainder
 	MUL		posTenth
 	CDQ
 	MOV		EBX,  counter
 	DIV		EBX
-    MOV     ThirdDigit,  EAX
+    MOV     thirdDigit,  EAX
     MOV     remainder,  EDX
-    JMP     _checkFloatRounding
+    JMP     _checkFloatRounding						; check if round up is required
 
 
-_checkFloatRounding:
-    MOV     EAX,  ThirdDigit
+; jump here to check if hundredths need to be rounded up
+_checkFloatRounding:			
+    MOV     EAX,  thirdDigit
     CMP     EAX,  ROUNDUPVAL
-    JG
+    JGE		_roundUpFloat
+	JMP		_displayFloatCond						; no round up needed, jump to displayFloatCond
 
 
+
+; jump here as hundredths need to be rounded up, further check if hundredths is 9; if yes, change secondDigit to 0 and carry +/- 1 to tenths
+_roundUpFloat:
+	MOV		EAX,  secondDigit
+	CMP		EAX,  EDGE_CASE
+	JE		_advanceFirstDecimal
+	INC		EAX
+	MOV		secondDigit,  EAX
+	JMP		_displayFloatCond
+	
+
+; jump here to check if tenths is 9; if yes, change firstDigit to 0 and carry +/- 1 to quotient
+_advanceFirstDecimal:
+	MOV		EAX,  firstDigit
+	CMP		EAX,  EDGE_CASE
+	JE		_advanceQuotient
+	INC		EAX
+	MOV		firstDigit,  EAX
+	JMP		_displayFloatCond
+
+
+; jump here if the tenth place is 9 and carry a round up to quotient
+_advanceQuotient:		
+	MOV		EAX,  quotient
+	INC		EAX										
+	MOV		quotient,  EAX
+	JMP		_displayFloatCond
+	
+
+; junmp here to display the value nearest to .01
+_displayFloatCond:
+	MOV		EAX,  quotient
+	CALL	WriteInt
+	MOV		EDX,  OFFSET  dot
+	CALL	WriteString
+	MOV		EAX,  firstDigit
+	CALL	WriteDec
+	MOV		EAX,  secondDigit
+	CALL	WriteDec
+	CALL	CrLF
+	JMP		_bye
 
 
  ; display no numbers entered and jump to _bye
 _noNumber:
     MOV     EDX,  OFFSET  warning2
     CALL    WriteString
+	CALL	CrLF
     JMP     _bye
 
 
