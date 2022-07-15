@@ -43,13 +43,13 @@ intro5		BYTE	"] or [",  0
 intro6		BYTE	"].",  0
 intro7      BYTE    "Enter a non-negative number when you are finished to see results.",  0
 prompt2     BYTE    " - Enter number: ",  0
-extracd1    BYTE    "EC: Number the lines during user input",  0
+extracd1    BYTE    "**EC - Number the lines during user input**",  0
 extracd2    BYTE    "Line ",  0
 
 countLine   DWORD    1
 counter     DWORD    0                              ; store how many numbers
 value       SDWORD   ?                              ; signed variable to store the negative value; results...
-maxVal		SDWORD	-201                            ; initialize as the lowest possible value - 1
+maxVal		SDWORD  -201                            ; initialize as the lowest possible value - 1
 minVAL		SDWORD	0                               ; initialize as the largest possible value + 1
 sum			SDWORD	0
 average		SDWORD	?
@@ -60,7 +60,12 @@ warning1    BYTE    "Number Invalid!",  0
 ; for part 3
 quotient	DWORD	?
 remainder	DWORD	?
-tenth		DWORD	-10
+negTenth	DWORD	-10                             ; the remainder should have the same sign as quotient (negative), remainder * -10 will then become positive and use it to divide counter to checking roundup or not
+posTenth    DWORD   10
+firstDigit  DWORD   ?                               ; use to store the decimal places
+secondDigit DWORD   ?
+thirdDigit  DWORD   ?
+
 warning2    BYTE    "No numbers entered!",  0
 outcome1    BYTE    "You have entered ",  0
 outcome2    BYTE    " valid numbers.",  0
@@ -68,6 +73,9 @@ outcome3    BYTE    "The maximum valid number is ",  0
 outcome4    BYTE    "The minimum valid number is ",  0
 outcome5    BYTE    "The sum of your valid numbers is ",  0
 outcome6    BYTE    "The rounded average is ",  0
+extracd3    BYTE    "**EC - Calculate and display the average as a decimal-point number , rounded to the nearest .01",  0
+extracd4    BYTE    "Average (rounded to the nearest .01: ",  0
+dot         BYTE    ".",  0
 
 ; for part 4
 farewell    BYTE    "We have to stop meeting like this. Farewell, ",  0
@@ -259,35 +267,74 @@ _nonNegative:
 
 	MOV     EDX,  OFFSET  outcome6					; display the rounded average
     CALL    WriteString
-	
-	MOV     EAX,  sum                               ; move sum (dividend) into AX
-    CDQ                                             ; sign-extend AX into DX
-    MOV     EBX,  counter                           ; move counter (divisor) into BX
+
+	MOV     EAX,  sum                               ; move sum (dividend) into EAX
+    CDQ                                             ; sign-extend EAX into EDX
+    MOV     EBX,  counter                           ; move counter (divisor) into EBX
     IDIV    EBX
     MOV     quotient,  EAX                          ; store quotient into variable
     MOV     remainder,  EDX                         ; store remainder into variable
 
 	MOV		EAX,  remainder
-	MUL		tenth
+	MUL		negTenth                                ; as the sum is always negative, turn it to positive for div and comparison with counter
 	CDQ
 	MOV		EBX,  counter
 	DIV		EBX
+	MOV     firstDigit,  EAX
+	MOV     remainder,  EDX
 	CMP		EAX,  ROUNDUPVAL
 	JG		_roundUp
 	JMP		_noRoundUp
 
-_roundUp:											
+_roundUp:
 	MOV		EAX,  quotient
 	DEC		EAX
 	CALL	WriteInt
 	CALL    CrLF
-    JMP     _bye
+    JMP     _displayFloat
 
 _noRoundUp:
 	MOV		EAX,  quotient
 	CALL	WriteInt
 	CALL    CrLF
     JMP     _bye
+
+_displayFloat
+    MOV     EDX,  OFFSET  extracd3
+    CALL    WriteString
+    CALL    CrLF
+    MOV     EDX,  OFFSET  extracd4
+    CALL    WriteString
+
+_getSecondDigits:                                  ; for 2nd decimal digit
+	MOV		EAX,  remainder
+	MUL		posTenth
+	CDQ
+	MOV		EBX,  counter
+	DIV		EBX
+    MOV     secondDigit,  EAX
+    MOV     remainder,  EDX
+    JMP     _getThirdDigits
+
+
+_getThirdDigits:                                  ; for 3rd decimal digit
+	MOV		EAX,  remainder
+	MUL		posTenth
+	CDQ
+	MOV		EBX,  counter
+	DIV		EBX
+    MOV     ThirdDigit,  EAX
+    MOV     remainder,  EDX
+    JMP     _checkFloatRounding
+
+
+_checkFloatRounding:
+    MOV     EAX,  ThirdDigit
+    CMP     EAX,  ROUNDUPVAL
+    JG
+
+
+
 
  ; display no numbers entered and jump to _bye
 _noNumber:
@@ -302,11 +349,10 @@ _bye:
     MOV     EDX,  OFFSET  farewell
     CALL    WriteString
     MOV		EDX,  OFFSET  userName
-	CALL	WriteString
+    CALL	WriteString
 
-	Invoke ExitProcess,0	                        ; exit to operating system
-	;http://masm32.com/board/index.php?topic=1226.15
-	;https://github.com/cacarrilloc/ASSEMBLY-PROJECTS-MASM/blob/master/Integer_Accumulator.asm
+    Invoke ExitProcess,0	                        ; exit to operating system
+
 main ENDP
 
 ; (insert additional procedures here)
