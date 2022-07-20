@@ -156,14 +156,16 @@ showPrimes PROC
 ; returns: the formatted output for prime numbers
 ;============================================
 
+    _checkPrime:
     MOV     EAX,  2                                 ; 1 is not prime by definition, start with 2
-    MOV     EBX,  0                                 ; counter for max. output for a row
+    MOV     EBX,  1                                 ; counter for max. output for a row
     MOV     ECX,  value                             ; for setting up counter to loop 'value' times
 
     CALL    isPrime
     CMP     EAX,  0
     JE      _displayPrime
-    JMP     _notPrime
+    INC     EAX
+    LOOP    _checkPrime
 
     ; jump here if isPrime returns 0
     _displayPrime:
@@ -175,21 +177,28 @@ showPrimes PROC
     JE      _nextRow
     LOOP    _checkPrime
 
-
-
-
+    ; jump here if a row contains 10 values
+    _nextRow:
+    CALL    CrLF
+    MOV     EBX,  1
+    LOOP    _checkPrime
 
 	RET
 
 showPrimes ENDP
 
-; description of the procedure
-; preconditions:
-; postconditions:
-; receivees:
-; returns:
-
+;============================================
 isPrime PROC
+
+; To receive candidate value, return 1 for prime; 0 for not prime
+; preconditions: setting up the inner loop counter (from value 2 to sqrt(value)); push the original ECX for recovery
+; postconditions: change of EAX (divisor); ECX (counter); EDX (remainder)
+; receives: the candidate value EAX
+; returns: boolean 1 for prime; 0 for non-prime
+;============================================
+
+    PUSH    ECX                                     ; save outerloop ECX 
+
 
 	RET
 
