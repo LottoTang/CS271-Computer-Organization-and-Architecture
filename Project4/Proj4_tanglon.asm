@@ -37,6 +37,13 @@ prompt3     BYTE    "]: ",  0
 
 ; for showPrimes
 output1     BYTE    "   ",  0
+rowCounter  BYTE    0
+
+; for isPrime
+primediv    BYTE    2                               ; divisor start with 2 and end with dividend - 1
+
+; for farewell
+bye         BYTE    "Results certified by Lotto. Goodbye.",  0
 
 .code
 main PROC
@@ -45,9 +52,13 @@ main PROC
 
 	CALL	introduction
 
+	CALL    getUserData
 
+	CALL    isPrime
 
-	Invoke ExitProcess,0	; exit to operating system
+	CALL    farewell
+
+	Invoke ExitProcess,0	                        ; exit to operating system
 
 main ENDP
 
@@ -99,11 +110,11 @@ validate PROC
 
     ; validated input
     MOV     value,  EAX                             ; EAX is now storing the user input
-    MOV     EBX,  0                                 ; assign EBX as 0 again to make sure the data is validated
 	RET
 
 	; jump here if invalid data found
 	_error:
+    CALL    CrLF
 	MOV     EDX,  OFFSET  error1                    ; display error message
 	CALL    WriteString
 	CALL    CrLF
@@ -137,7 +148,6 @@ _askInput:
 
     MOV     EAX,  0                                 ; initialize EAX as 0
     CALL    ReadInt                                 ; ask for user input
-    CALL    CrLF
 
     CALL    validate                                ; call validate to check if within range
     CMP     EBX,  1                                 ; returned EBX: if 0 (valid input); 1 (invalid input)
@@ -149,7 +159,7 @@ getUserData ENDP
 ;============================================
 showPrimes PROC
 
-; To display the number of prime numbers (number depends on user's value)
+; To display the number of prime numbers (number depends upto user's value)
 ; preconditions: display the prime numbers in at most 10 numbers per row
 ; postconditions: EDX changed (for WriteString); EAX changed (for displaying prime numbers)
 ; receives: prime numbers from isPrime
@@ -157,23 +167,24 @@ showPrimes PROC
 ;============================================
 
     _checkPrime:
-    MOV     EAX,  2                                 ; 1 is not prime by definition, start with 2
-    MOV     EBX,  1                                 ; counter for max. output for a row
-    MOV     ECX,  value                             ; for setting up counter to loop 'value' times
+    MOV     EAX,  1                                 ; start checking by 1
+    MOV     EBX,  0                                 ; 0: non-prime; 1: prime
+    MOV     ECX,  value                             ; for setting up outer loop counter upto 'value' times
 
     CALL    isPrime
-    CMP     EAX,  0
+    CMP     EBX,  1
     JE      _displayPrime
     INC     EAX
     LOOP    _checkPrime
+	RET
 
     ; jump here if isPrime returns 0
     _displayPrime:
     CALL    WriteDec
     MOV     EDX,  OFFSET  output1
     CALL    WriteString
-    INC     EBX
-    CMP     EBX,  MAX_ROW
+    INC     rowCounter
+    CMP     rowCounter,  MAX_ROW
     JE      _nextRow
     LOOP    _checkPrime
 
@@ -183,35 +194,72 @@ showPrimes PROC
     MOV     EBX,  1
     LOOP    _checkPrime
 
-	RET
-
 showPrimes ENDP
 
 ;============================================
 isPrime PROC
 
-; To receive candidate value, return 1 for prime; 0 for not prime
-; preconditions: setting up the inner loop counter (from value 2 to sqrt(value)); push the original ECX for recovery
+; To receive candidate value, return 1 for prime; 0 for non-prime
+; preconditions: setting up the inner loop counter (from value 2 to dividend - 1); push the original ECX for recovery
 ; postconditions: change of EAX (divisor); ECX (counter); EDX (remainder)
 ; receives: the candidate value EAX
 ; returns: boolean 1 for prime; 0 for non-prime
 ;============================================
 
-    PUSH    ECX                                     ; save outerloop ECX 
+    PUSH    ECX                                     ; push the outer loop counter on stack
 
+    CMP     EAX,  1
+    JE      _notPrime
+    CMP     EAX,  2
+    JE      _Prime
+    CMP     EAX,  3
+    JE      _prime
+    MOV     ECX,  EAX                               ; start here at EAX = 4 or above
+    SUB     ECX,  2                                 ; internal loop should loop for dividend - 2 times (exclude 1 and itself)
+    MOV     primeNum,  2                            ; re-initialize for primeNum (divisor)
+    JMP     _furtherCheck
 
-	RET
+    ; jump here if the value is not prime or exactly 1
+    _notPrime:
+    MOV     EBX,  0
+    POP     ECX                                     ; restore the value of outer loop counter
+    RET
+
+    ; jump here if the value is prime
+    _prime
+    MOV     EBX,  1
+    POP     EAX                                     ; restore original EAX (dividend)
+    POP     ECX
+    RET
+
+    ; jump here if the value is 4 or above
+    _furtherCheck:
+    PUSH    EAX                                     ; store original EAX (dividend) on stack
+    MOV     EBX,  primeNum                          ; set the divisor as primeNum
+    MOV     EDX,  0                                 ; set the remainder as 0
+    DIV     EBX                                     ; EAX here should start with 4 (as case 1-3 are tested)
+    CMP     EDX,  0
+    JZ      _notPrime
+    POP     EAX                                     ; restore original EAX (dividend)
+    INC     primeNum                                ; increment divisor from 2 to dividend - 1 for checking
+    LOOP    _furtherCheck
+    JMP     _prime
 
 isPrime ENDP
 
-; description of the procedure
-; preconditions:
-; postconditions:
-; receivees:
-; returns:
+;============================================
+ PROC farewell
 
-farewell PROC
+; To display farewell messages
+; preconditions: strings that describe the program and rules
+; postconditions: EDX changed
+; receives: N/A
+; returns: N/A
+;============================================
 
+	CALL    CrLF
+	MOV     EDX,  OFFSET  bye
+	CALL    WriteString
 	RET
 
 farewell ENDP
