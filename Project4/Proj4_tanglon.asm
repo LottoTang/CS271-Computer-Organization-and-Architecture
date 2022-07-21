@@ -16,7 +16,7 @@ INCLUDE Irvine32.inc
 
 LOWER_BOUND = 1
 UPPER_BOUND = 200
-ROW_MAX = 10
+MAX_ROW = 10
 
 .data
 
@@ -31,16 +31,17 @@ intro3		BYTE	"I'll accept orders for up to 200 primes.",  0
 error1      BYTE    "No primes for you! Number out of range. Try again.",  0
 
 ; for getUserData
-prompt1     BYTE    "Enter the number of primes to display [,  0
+prompt1     BYTE    "Enter the number of primes to display [",  0
 prompt2     BYTE    " ... ",  0
 prompt3     BYTE    "]: ",  0
 
 ; for showPrimes
 output1     BYTE    "   ",  0
 rowCounter  BYTE    0
+value       DWORD    0
 
 ; for isPrime
-primediv    BYTE    2                               ; divisor start with 2 and end with dividend - 1
+primeNum    DWORD    2                               ; divisor start with 2 and end with dividend - 1
 
 ; for farewell
 bye         BYTE    "Results certified by Lotto. Goodbye.",  0
@@ -114,11 +115,11 @@ validate PROC
 
 	; jump here if invalid data found
 	_error:
-    CALL    CrLF
 	MOV     EDX,  OFFSET  error1                    ; display error message
 	CALL    WriteString
 	CALL    CrLF
 	MOV     EBX,  1
+    CALL    CrLF
     RET                                             ; EBX as 1 to indicate error spotted
 
 validate ENDP
@@ -176,6 +177,7 @@ showPrimes PROC
     JE      _displayPrime
     INC     EAX
     LOOP    _checkPrime
+    JMP     _displayPrime
 	RET
 
     ; jump here if isPrime returns 0
@@ -211,7 +213,7 @@ isPrime PROC
     CMP     EAX,  1
     JE      _notPrime
     CMP     EAX,  2
-    JE      _Prime
+    JE      _prime
     CMP     EAX,  3
     JE      _prime
     MOV     ECX,  EAX                               ; start here at EAX = 4 or above
@@ -226,7 +228,7 @@ isPrime PROC
     RET
 
     ; jump here if the value is prime
-    _prime
+    _prime:
     MOV     EBX,  1
     POP     EAX                                     ; restore original EAX (dividend)
     POP     ECX
@@ -248,7 +250,7 @@ isPrime PROC
 isPrime ENDP
 
 ;============================================
- PROC farewell
+farewell PROC
 
 ; To display farewell messages
 ; preconditions: strings that describe the program and rules
