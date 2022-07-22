@@ -1,7 +1,7 @@
 TITLE Prime Numbers     (Proj4_tanglon.asm)
 
 ; Author: Long To Lotto Tang
-; Last Modified: 19/7/2022
+; Last Modified: 22/7/2022
 ; OSU email address: tanglon@oregonstate.edu
 ; Course number/section:   CS271 Section 400
 ; Project Number: 4                Due Date: 24/7/2022
@@ -167,17 +167,16 @@ showPrimes PROC
 ; returns: the formatted output for prime numbers
 ;============================================
 
-    _checkPrime:
     MOV     EAX,  1                                 ; start checking by 1
-    MOV     EBX,  0                                 ; 0: non-prime; 1: prime
     MOV     ECX,  value                             ; for setting up outer loop counter upto 'value' times
+    JMP     _checkPrime
 
+    _checkPrime:
+    MOV     EBX,  0                                 ; 0: non-prime; 1: prime
     CALL    isPrime
     CMP     EBX,  1
     JE      _displayPrime
-    INC     EAX
-    LOOP    _checkPrime
-    JMP     _displayPrime
+    JMP     _advanceEAX
 	RET
 
     ; jump here if isPrime returns 0
@@ -185,16 +184,23 @@ showPrimes PROC
     CALL    WriteDec
     MOV     EDX,  OFFSET  output1
     CALL    WriteString
+    INC     EAX
     INC     rowCounter
     CMP     rowCounter,  MAX_ROW
     JE      _nextRow
     LOOP    _checkPrime
+    RET
 
     ; jump here if a row contains 10 values
     _nextRow:
     CALL    CrLF
-    MOV     EBX,  1
+    MOV     rowCounter,  1
     LOOP    _checkPrime
+    RET
+
+    _advanceEAX:
+    INC     EAX
+    JMP    _checkPrime
 
 showPrimes ENDP
 
@@ -208,35 +214,44 @@ isPrime PROC
 ; returns: boolean 1 for prime; 0 for non-prime
 ;============================================
 
-    PUSH    ECX                                     ; push the outer loop counter on stack
-
     CMP     EAX,  1
-    JE      _notPrime
+    JE      _notPrimeSpeical
     CMP     EAX,  2
-    JE      _prime
+    JE      _primeSpecial
     CMP     EAX,  3
-    JE      _prime
+    JE      _primeSpecial
+    PUSH    ECX                                     ; push the outer loop counter on stack
     MOV     ECX,  EAX                               ; start here at EAX = 4 or above
     SUB     ECX,  2                                 ; internal loop should loop for dividend - 2 times (exclude 1 and itself)
     MOV     primeNum,  2                            ; re-initialize for primeNum (divisor)
     JMP     _furtherCheck
 
-    ; jump here if the value is not prime or exactly 1
+    ; jump here if the value is exactly 1
+    _notPrimeSpecial:
+    MOV     EBX,  0
+    RET
+
+    ; jump here if the value is not prime (other than 1)
     _notPrime:
     MOV     EBX,  0
+    POP     EAX
     POP     ECX                                     ; restore the value of outer loop counter
+    RET
+
+    ; jump here if the value is 2 || 3
+    _primeSpecial:
+    MOV     EBX,  1
     RET
 
     ; jump here if the value is prime
     _prime:
     MOV     EBX,  1
-    POP     EAX                                     ; restore original EAX (dividend)
     POP     ECX
     RET
 
     ; jump here if the value is 4 or above
     _furtherCheck:
-    PUSH    EAX                                     ; store original EAX (dividend) on stack
+    PUSH    EAX                                     ; push the original dividend on stack
     MOV     EBX,  primeNum                          ; set the divisor as primeNum
     MOV     EDX,  0                                 ; set the remainder as 0
     DIV     EBX                                     ; EAX here should start with 4 (as case 1-3 are tested)
@@ -265,8 +280,3 @@ farewell PROC
 	RET
 
 farewell ENDP
-
-
-
-
-END main
