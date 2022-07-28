@@ -22,22 +22,25 @@ INCLUDE Irvine32.inc
 LO = 15
 HI = 50
 ARRAYSIZE = 200
+MAX_COL = 20
 
 .data
 
 ; (insert variable definitions here)
 
 ; for introduction
-intro1      BYTE    "Generating, Sorting, and Counting Random integers!              Programmed by Lotto",  0
+intro1      BYTE    "Generating, Sorting, and Counting Random integers!                      Programmed by Lotto",  0
 intro2      BYTE    "This program generates 200 random integers between 15 and 50, inclusive.",  0
 intro3      BYTE    "It then displays the original list, sorts the list, displays the median value of the list,",  0
 intro4      BYTE    "displays the list sorted in ascending order, and finally displays the number of instances",  0
 intro5      BYTE    "of each generated value, starting with the number of lowest.",  0
 
 ; for fillArray
-list        DWROD   ARRAYSIZE DUP (?)               ; declare array (# of elements = ARRAYSIZE; initialize as ?)
-ranVal      DWORD   ?
+list        DWORD   ARRAYSIZE DUP (?)               ; declare array (# of elements = ARRAYSIZE; initialize as ?)
+unsorted1   BYTE    "Your unsorted random numbers:",  0
 
+; for displayArray
+output1     BYTE    " ",  0
 
 
 .code
@@ -45,12 +48,15 @@ main PROC
 
 ; (insert executable instructions here)
 
-    CALL    randomize                               ; initialize starting seed value of RandomRange
+    CALL    Randomize                               ; initialize starting seed value of RandomRange
 
     CALL    introduction                            ; display greetings & general instructions
 
-    PUSH    OFFSET,  list                           ; push the address of the array on stack as parameter
+    PUSH    OFFSET  list                            ; push the address of the array on stack as parameter
     CALL    fillArray                               ; to fill up the array by random numbers range LO - HI
+
+    PUSH    OFFSET  list                            ; push the address of the array on stack as parameter
+    CALL    displayList
 
 
 	Invoke ExitProcess,0	                        ; exit to operating system
@@ -82,12 +88,10 @@ introduction PROC
 	CALL	WriteString
 	CALL	CrLF
 
-    CALL	CrLF
 	MOV		EDX,  OFFSET  intro4
 	CALL	WriteString
 	CALL	CrLF
 
-    CALL	CrLF
 	MOV		EDX,  OFFSET  intro5
 	CALL	WriteString
 	CALL	CrLF
@@ -105,6 +109,12 @@ fillArray PROC
 ; returns: 1) using Indexed Operands [ESI], EAX to store the random number to list
 ;============================================
 
+    CALL    CrLF
+    MOV     EDX,  OFFSET  unsorted1
+    CALL    WriteString
+    CALL    CrLF
+
+    ; start generating random numbers looping for ARRAYSIZE times
     PUSH    EBP
     MOV     EBP,  ESP                               ; set EBP to allow base+offset operations
     MOV     ESI,  [EBP+8]                           ; ESI is pointing to the 1st address of list
@@ -120,7 +130,52 @@ fillArray PROC
     ADD     ESI,  4
     LOOP    _generateRandom                         ; the process should loop for ARRAYSIZE times
 
+    POP     EBP
+    RET     4                                       ; return the memory address of list
 
 fillArray ENDP
+
+;============================================
+displayList PROC
+
+; To display the entire array list
+; preconditions: 1) Push EBP; 2) ESI as address of list; 3) Change ECX to ARRAYSIZE; 4) Display 20 elements per row as maximum
+; postconditions: 1) EAX changed for WriteDec; 2) Advance of ESI after each fill in; 3) increment of row counter EBX
+; receives: 1) Address of the array ESI and its value
+; returns: 1) the output of value in the address from WriteDec
+;============================================
+
+    PUSH    EBP
+    MOV     EBP,  ESP
+    MOV     EBX,  0                                 ; set EBX as the row counter
+    MOV     ESI,  [EBP+8]
+    MOV     ECX,  ARRAYSIZE
+    JMP     _displayArray
+
+    _displayArray:
+    
+    MOV     EAX,  [ESI]                             ; copy the value from that address to EAX for WriteDec
+    CALL    WriteDec
+    MOV     EDX,  OFFSET  output1
+    CALL    WriteString
+    INC     EBX
+    CMP     EBX,  MAX_COL
+    JE      _nextRow
+    JMP     _nextNumber
+
+    _nextRow:
+    CALL    CrLF
+    MOV     EBX,  0
+    JMP     _nextNumber
+
+    _nextNumber:
+    ADD     ESI,  4
+    LOOP    _displayArray
+
+    POP     EBP
+    RET     4
+
+displayList ENDP
+
 
 END main
