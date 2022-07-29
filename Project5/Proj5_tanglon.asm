@@ -29,11 +29,14 @@ MAX_COL = 20
 ; (insert variable definitions here)
 
 ; for introduction
-intro1      BYTE    "Generating, Sorting, and Counting Random integers!                      Programmed by Lotto",  0
-intro2      BYTE    "This program generates 200 random integers between 15 and 50, inclusive.",  0
-intro3      BYTE    "It then displays the original list, sorts the list, displays the median value of the list,",  0
-intro4      BYTE    "displays the list sorted in ascending order, and finally displays the number of instances",  0
-intro5      BYTE    "of each generated value, starting with the number of lowest.",  0
+intro1      BYTE    "**Generating, Sorting, and Counting Random integers!** by Lotto",  0
+intro2      BYTE    "This program generates ",  0
+intro3      BYTE    " random integers between ",  0
+intro4      BYTE    " and ",  0
+intro5      BYTE    ", inclusive.",  0
+intro6      BYTE    "The program will first display the random list, displays the median value of the list,",  0
+intro7      BYTE    "displays the list sorted in ascending order, and finally displays the number of instances",  0
+intro8      BYTE    "of each generated value, starting with the number of lowest.",  0
 
 ; for fillArray
 list        DWORD   ARRAYSIZE DUP (?)               ; declare array (# of elements = ARRAYSIZE; initialize as ?)
@@ -82,17 +85,30 @@ introduction PROC
 	CALL	CrLF
 	MOV		EDX,  OFFSET  intro2
 	CALL	WriteString
-
-	CALL	CrLF
-	MOV		EDX,  OFFSET  intro3
+	MOV     EAX,  ARRAYSIZE
+	CALL    WriteDec
+    MOV		EDX,  OFFSET  intro3
 	CALL	WriteString
-	CALL	CrLF
-
-	MOV		EDX,  OFFSET  intro4
+	MOV     EAX,  LO
+	CALL    WriteDec
+    MOV		EDX,  OFFSET  intro4
 	CALL	WriteString
-	CALL	CrLF
+	MOV     EAX,  HI
+	CALL    WriteDec
+    MOV		EDX,  OFFSET  intro5
+	CALL	WriteString
 
-	MOV		EDX,  OFFSET  intro5
+
+	CALL	CrLF
+	MOV		EDX,  OFFSET  intro6
+	CALL	WriteString
+
+    CALL	CrLF
+	MOV		EDX,  OFFSET  intro7
+	CALL	WriteString
+
+    CALL	CrLF
+	MOV		EDX,  OFFSET  intro8
 	CALL	WriteString
 	CALL	CrLF
 	RET
@@ -153,7 +169,7 @@ displayList PROC
     JMP     _displayArray
 
     _displayArray:
-    
+
     MOV     EAX,  [ESI]                             ; copy the value from that address to EAX for WriteDec
     CALL    WriteDec
     MOV     EDX,  OFFSET  output1
@@ -177,5 +193,68 @@ displayList PROC
 
 displayList ENDP
 
+;============================================
+sortList PROC
+
+; To sort the array in ascending order
+; preconditions: using insertion sort (outer and inner loop): push ECX
+; postconditions: POP ECX to restore the outerloop
+; receives: 1) ESI & advancement;
+; returns: 1) the sorted array
+;============================================
+
+    PUSH    EBP
+    MOV     EBP,  ESP
+    MOV     ESI,  [EBP+8]
+    MOV     ECX,  ARRAYSIZE
+    DEC     ECX                                     ; insertion sort will only do ARRAYSIZE - 1 times
+
+    _outerLoop:
+
+    PUSH    ECX                                     ; save the outer loop counter
+    PUSH    ESI                                     ; push the current address on stack (for comparing with other elements)
+    MOV     EDI,  0                                 ; initialize EDI to store the min element
+    MOV     EBX,  0                                 ; set 0 as no smaller value has spotted
+    MOV     EDI,  ESI
+    JMP     _innerLoop
+
+    _innerLoop:
+
+    ADD     ESI,  4
+    CMP     [EDI],  [ESI]
+    JL      _updateMin
+    JMP     _innerLoopContinue
+
+    _innerLoopContinue:
+
+    LOOP    _innerLoop
+    PUSH    ESI
+    PUSH    EDI
+    CMP     EBX,  1                                 ; swap with the smaller elements
+    JE      _goSwap
+    JMP     _innerLoopContinue2
+
+    _goSwap:
+
+    CALL    exchangeElements                        ; exchange the elements once the min value is found
+    JMP     _innerLoopContinue2
+
+    _innerLoopContinue2:
+
+    POP     ESI                                     ; restore the swapped address
+    ADD     ESI,  4                                 ; check for next address with the remaining
+    POP     ECX                                     ; restore loop counter
+    LOOP    _outerLoop
+    POP     EBP
+    RET     4
+
+    _updateMin:
+
+    MOV     EDI,  ESI
+    MOV     EBX,  1                                 ; found smaller value
+    JMP     _innerLoopContinue
+
+
+sortList ENDP
 
 END main
