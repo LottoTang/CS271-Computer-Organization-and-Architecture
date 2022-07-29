@@ -21,7 +21,7 @@ INCLUDE Irvine32.inc
 ; (insert constant definitions here)
 LO = 15
 HI = 50
-ARRAYSIZE = 200
+ARRAYSIZE = 3
 MAX_COL = 20
 
 .data
@@ -45,6 +45,9 @@ unsorted1   BYTE    "Your unsorted random numbers:",  0
 ; for displayArray
 output1     BYTE    " ",  0
 
+; for sortList
+sorted1     BYTE    "Your sorted random numbers:",  0
+
 
 .code
 main PROC
@@ -58,6 +61,12 @@ main PROC
     PUSH    OFFSET  list                            ; push the address of the array on stack as parameter
     CALL    fillArray                               ; to fill up the array by random numbers range LO - HI
 
+    PUSH    OFFSET  list                            ; push the address of the array on stack as parameter
+    CALL    displayList
+
+    PUSH    OFFSET  list
+    CALL    sortList
+    
     PUSH    OFFSET  list                            ; push the address of the array on stack as parameter
     CALL    displayList
 
@@ -194,6 +203,29 @@ displayList PROC
 displayList ENDP
 
 ;============================================
+exchangeElements PROC
+
+; To exchange the contents of the 2 elements
+; preconditions: push the address of the 2 elements
+; postconditions: N/A
+; receives: address of the 2 elements
+; returns: N/A (write the new value into the other address)
+;============================================
+    
+    PUSH    EBP
+    MOV     EBP,  ESP
+    
+    MOV     EBX,  [[[ESP+8]]]
+    MOV     EDX,  [ESP+4]
+    MOV     [ESP+8],  EDX
+    MOV     [ESP+4],  EBX
+
+    POP     EBP
+    RET     8
+
+exchangeElements ENDP
+
+;============================================
 sortList PROC
 
 ; To sort the array in ascending order
@@ -213,48 +245,45 @@ sortList PROC
 
     PUSH    ECX                                     ; save the outer loop counter
     PUSH    ESI                                     ; push the current address on stack (for comparing with other elements)
-    MOV     EDI,  0                                 ; initialize EDI to store the min element
-    MOV     EBX,  0                                 ; set 0 as no smaller value has spotted
-    MOV     EDI,  ESI
+    MOV     EDI,  0                                 
+    MOV     EDI,  ESI                               ; initialize EDI to store the address of the target item (to compare with others)
+    MOV     EBX,  [EDI]
     JMP     _innerLoop
 
     _innerLoop:
 
     ADD     ESI,  4
-    CMP     [EDI],  [ESI]
+    CMP     [ESI],  EBX
     JL      _updateMin
     JMP     _innerLoopContinue
 
     _innerLoopContinue:
 
     LOOP    _innerLoop
-    PUSH    ESI
+    PUSH    EAX
     PUSH    EDI
-    CMP     EBX,  1                                 ; swap with the smaller elements
-    JE      _goSwap
-    JMP     _innerLoopContinue2
-
-    _goSwap:
-
     CALL    exchangeElements                        ; exchange the elements once the min value is found
-    JMP     _innerLoopContinue2
-
-    _innerLoopContinue2:
 
     POP     ESI                                     ; restore the swapped address
     ADD     ESI,  4                                 ; check for next address with the remaining
     POP     ECX                                     ; restore loop counter
     LOOP    _outerLoop
+    
+    MOV     EDX,  OFFSET  sorted1
+    CALL    WriteString
+    CALL    CrLf
+
     POP     EBP
     RET     4
 
     _updateMin:
 
-    MOV     EDI,  ESI
-    MOV     EBX,  1                                 ; found smaller value
+    MOV     EAX,  ESI                             ; EAX now stores the address of the 'smaller' element
+    MOV     EBX,  [EAX]                             
     JMP     _innerLoopContinue
 
-
 sortList ENDP
+
+
 
 END main
