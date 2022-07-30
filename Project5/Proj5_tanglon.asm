@@ -39,7 +39,7 @@ intro7      BYTE    "displays the list sorted in ascending order, and finally di
 intro8      BYTE    "of each generated value, starting with the number of lowest.",  0
 
 ; for fillArray
-list        DWORD   ARRAYSIZE DUP (?)               ; declare array (# of elements = ARRAYSIZE; initialize as ?)
+randArray   DWORD   ARRAYSIZE DUP (?)               ; declare array (# of elements = ARRAYSIZE; initialize as ?)
 unsorted1   BYTE    "Your unsorted random numbers:",  0
 
 ; for displayArray
@@ -58,16 +58,16 @@ main PROC
 
     CALL    introduction                            ; display greetings & general instructions
 
-    PUSH    OFFSET  list                            ; push the address of the array on stack as parameter
+    PUSH    OFFSET  randArray                       ; push the address of the array on stack as parameter
     CALL    fillArray                               ; to fill up the array by random numbers range LO - HI
 
-    PUSH    OFFSET  list                            ; push the address of the array on stack as parameter
+    PUSH    OFFSET  randArray                       ; push the address of the array on stack as parameter
     CALL    displayList
 
-    PUSH    OFFSET  list
+    PUSH    OFFSET  randArray
     CALL    sortList
-    
-    PUSH    OFFSET  list                            ; push the address of the array on stack as parameter
+
+    PUSH    OFFSET  randArray                       ; push the address of the array on stack as parameter
     CALL    displayList
 
 
@@ -128,10 +128,10 @@ introduction ENDP
 fillArray PROC
 
 ; To fill up the entire array by random numbers ranging from LO - HI
-; preconditions: 1) Push EBP; 2) ESI as address of list; 3) Change ECX to ARRAYSIZE; 4) Call RandomRange (Upper Bound to EAX)
+; preconditions: 1) Push EBP; 2) ESI as address of randArray; 3) Change ECX to ARRAYSIZE; 4) Call RandomRange (Upper Bound to EAX)
 ; postconditions: 1) Advance of ESI after each fill in
 ; receives: 1) ESI & advancement; 2) Random number (EAX)
-; returns: 1) using Indexed Operands [ESI], EAX to store the random number to list
+; returns: 1) using Indexed Operands [ESI], EAX to store the random number to randArray
 ;============================================
 
     CALL    CrLF
@@ -142,7 +142,7 @@ fillArray PROC
     ; start generating random numbers looping for ARRAYSIZE times
     PUSH    EBP
     MOV     EBP,  ESP                               ; set EBP to allow base+offset operations
-    MOV     ESI,  [EBP+8]                           ; ESI is pointing to the 1st address of list
+    MOV     ESI,  [EBP+8]                           ; ESI is pointing to the 1st address of randArray
     MOV     ECX,  ARRAYSIZE                         ; set counter as ARRAYSIZE to fill up the whole array
     JMP     _generateRandom
 
@@ -156,15 +156,15 @@ fillArray PROC
     LOOP    _generateRandom                         ; the process should loop for ARRAYSIZE times
 
     POP     EBP
-    RET     4                                       ; return the memory address of list
+    RET     4                                       ; return the memory address of randArray
 
 fillArray ENDP
 
 ;============================================
 displayList PROC
 
-; To display the entire array list
-; preconditions: 1) Push EBP; 2) ESI as address of list; 3) Change ECX to ARRAYSIZE; 4) Display 20 elements per row as maximum
+; To display the entire array randArray
+; preconditions: 1) Push EBP; 2) ESI as address of randArray; 3) Change ECX to ARRAYSIZE; 4) Display 20 elements per row as maximum
 ; postconditions: 1) EAX changed for WriteDec; 2) Advance of ESI after each fill in; 3) increment of row counter EBX
 ; receives: 1) Address of the array ESI and its value
 ; returns: 1) the output of value in the address from WriteDec
@@ -211,14 +211,15 @@ exchangeElements PROC
 ; receives: address of the 2 elements
 ; returns: N/A (write the new value into the other address)
 ;============================================
-    
+
     PUSH    EBP
     MOV     EBP,  ESP
-    
-    MOV     EBX,  [[[ESP+8]]]
-    MOV     EDX,  [ESP+4]
-    MOV     [ESP+8],  EDX
-    MOV     [ESP+4],  EBX
+
+    MOV     ESI,  [EBP+12]
+    MOV     EBX,  [ESI]                             ; EBX now storing the 'smaller' value
+    MOV     EDX,  [ESI+4]                           ; EDX now storing the target value (to compare with others)
+    MOV     [ESI+4],  EBX
+    MOV     [ESI],  EDX
 
     POP     EBP
     RET     8
@@ -230,7 +231,7 @@ sortList PROC
 
 ; To sort the array in ascending order
 ; preconditions: using insertion sort (outer and inner loop): push ECX
-; postconditions: POP ECX to restore the outerloop
+; postconditions: POP ECX to restore the outer loop
 ; receives: 1) ESI & advancement;
 ; returns: 1) the sorted array
 ;============================================
@@ -245,14 +246,14 @@ sortList PROC
 
     PUSH    ECX                                     ; save the outer loop counter
     PUSH    ESI                                     ; push the current address on stack (for comparing with other elements)
-    MOV     EDI,  0                                 
+    MOV     EDI,  0
     MOV     EDI,  ESI                               ; initialize EDI to store the address of the target item (to compare with others)
-    MOV     EBX,  [EDI]
+    MOV     EBX,  [EDI]                             ; store the value of that address to EBX
     JMP     _innerLoop
 
     _innerLoop:
 
-    ADD     ESI,  4
+    ADD     ESI,  4                                 ; advance ESI to next address for comparison
     CMP     [ESI],  EBX
     JL      _updateMin
     JMP     _innerLoopContinue
@@ -268,7 +269,7 @@ sortList PROC
     ADD     ESI,  4                                 ; check for next address with the remaining
     POP     ECX                                     ; restore loop counter
     LOOP    _outerLoop
-    
+
     MOV     EDX,  OFFSET  sorted1
     CALL    WriteString
     CALL    CrLf
@@ -279,7 +280,7 @@ sortList PROC
     _updateMin:
 
     MOV     EAX,  ESI                             ; EAX now stores the address of the 'smaller' element
-    MOV     EBX,  [EAX]                             
+    MOV     EBX,  [EAX]
     JMP     _innerLoopContinue
 
 sortList ENDP
