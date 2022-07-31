@@ -21,7 +21,7 @@ INCLUDE Irvine32.inc
 ; (insert constant definitions here)
 LO = 15
 HI = 50
-ARRAYSIZE = 3
+ARRAYSIZE = 200
 MAX_COL = 20
 
 .data
@@ -29,7 +29,7 @@ MAX_COL = 20
 ; (insert variable definitions here)
 
 ; for introduction
-intro1      BYTE    "**Generating, Sorting, and Counting Random integers!** by Lotto",  0
+intro1      BYTE    " **Generating, Sorting, and Counting Random integers! ** by Lotto",  0
 intro2      BYTE    "This program generates ",  0
 intro3      BYTE    " random integers between ",  0
 intro4      BYTE    " and ",  0
@@ -61,13 +61,13 @@ main PROC
     PUSH    OFFSET  randArray                       ; push the address of the array on stack as parameter
     CALL    fillArray                               ; to fill up the array by random numbers range LO - HI
 
-    PUSH    OFFSET  randArray                       ; push the address of the array on stack as parameter
+    PUSH    OFFSET  randArray                      
     CALL    displayList
 
     PUSH    OFFSET  randArray
     CALL    sortList
 
-    PUSH    OFFSET  randArray                       ; push the address of the array on stack as parameter
+    PUSH    OFFSET  randArray                      
     CALL    displayList
 
 
@@ -149,7 +149,8 @@ fillArray PROC
     _generateRandom:
     MOV     EAX,  HI
     SUB     EAX,  LO
-    CALL    RandomRange                             ; generate random number from (0- (HI-LOW))
+    INC     EAX
+    CALL    RandomRange                             ; generate random number from (0 - (HI-LOW))
     ADD     EAX,  LO                                ; add LO to match within the range LO - HI
     MOV     [ESI],  EAX                             ; put the random value to corresponding array's address using Indirect Operands
     ADD     ESI,  4
@@ -214,15 +215,23 @@ exchangeElements PROC
 
     PUSH    EBP
     MOV     EBP,  ESP
+    PUSHAD                                          ; reserve all the registers
 
-    MOV     ESI,  [EBP+12]
-    MOV     EBX,  [ESI]                             ; EBX now storing the 'smaller' value
-    MOV     EDX,  [ESI+4]                           ; EDX now storing the target value (to compare with others)
-    MOV     [ESI+4],  EBX
-    MOV     [ESI],  EDX
+    MOV     ESI,  [EBP+16]                          ; ESI is now pointing to the address of the array 
+    
+    MOV     EDI,  [EBP+8]                           ; EDX now storing the difference in bytes between randArray[0] to current comparing value
+    MOV     EDX,  [ESI+EDI]                         ; EDX is now storing the comparing value
 
+    MOV     EBX,  [EBP+12]                          ; EBX is now storing the difference in bytes with the 'smaller' value with the comparing value
+    ADD     EBX,  EDI                               ; EBX: the difference of bytes between randArray[0] to randArray[smaller value]
+    MOV     EAX,  [ESI+EBX]                         ; EAX is now storing the 'smaller' value
+
+    MOV     [ESI+EDI],  EAX                         ; swap
+    MOV     [ESI+EBX],  EDX
+
+    POPAD                                           ; restore the original registers
     POP     EBP
-    RET     8
+    RET     12
 
 exchangeElements ENDP
 
@@ -230,7 +239,7 @@ exchangeElements ENDP
 sortList PROC
 
 ; To sort the array in ascending order
-; preconditions: using insertion sort (outer and inner loop): push ECX
+; preconditions: using selection sort (outer and inner loop): push ECX
 ; postconditions: POP ECX to restore the outer loop
 ; receives: 1) ESI & advancement;
 ; returns: 1) the sorted array
@@ -238,15 +247,15 @@ sortList PROC
 
     PUSH    EBP
     MOV     EBP,  ESP
-    MOV     ESI,  [EBP+8]
+    MOV     ESI,  [EBP+8]                           ; ESI is pointing to the 1st address of randArray
+    MOV     EDX,  0                                 ; store the counter for checking item (array starts with 0)
     MOV     ECX,  ARRAYSIZE
-    DEC     ECX                                     ; insertion sort will only do ARRAYSIZE - 1 times
+    DEC     ECX                                     ; selection sort will only do ARRAYSIZE - 1 times
 
     _outerLoop:
 
     PUSH    ECX                                     ; save the outer loop counter
     PUSH    ESI                                     ; push the current address on stack (for comparing with other elements)
-    MOV     EDI,  0
     MOV     EDI,  ESI                               ; initialize EDI to store the address of the target item (to compare with others)
     MOV     EBX,  [EDI]                             ; store the value of that address to EBX
     JMP     _innerLoop
@@ -261,15 +270,25 @@ sortList PROC
     _innerLoopContinue:
 
     LOOP    _innerLoop
-    PUSH    EAX
-    PUSH    EDI
-    CALL    exchangeElements                        ; exchange the elements once the min value is found
+    CMP     EBX,  [EDI]
+    JNE     _goSwap
+    JMP     _resumeSwap
 
+    _goSwap:
+    PUSH    OFFSET  randArray
+    PUSH    EAX
+    PUSH    EDX
+    CALL    exchangeElements                        ; exchange the elements once the min value is found
+    JMP     _resumeSwap
+
+    _resumeSwap:
     POP     ESI                                     ; restore the swapped address
     ADD     ESI,  4                                 ; check for next address with the remaining
     POP     ECX                                     ; restore loop counter
+    ADD     EDX,  4                                 ; advance the checking item
     LOOP    _outerLoop
 
+    CALL    CrLF                                    
     MOV     EDX,  OFFSET  sorted1
     CALL    WriteString
     CALL    CrLf
@@ -279,8 +298,9 @@ sortList PROC
 
     _updateMin:
 
-    MOV     EAX,  ESI                             ; EAX now stores the address of the 'smaller' element
-    MOV     EBX,  [EAX]
+    MOV     EAX,  ESI                             
+    SUB     EAX,  EDI                               ; EAX now stores the difference of bytes from the comparing item to smaller item
+    MOV     EBX,  [ESI]
     JMP     _innerLoopContinue
 
 sortList ENDP
