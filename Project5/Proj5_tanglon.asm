@@ -1,17 +1,25 @@
 TITLE Project 5: Random Array Generator     (Proj5_tanglon.asm)
 
 ; Author: Long To Lotto Tang
-; Last Modified: 28/7/2022
+; Last Modified: 1/8/2022
 ; OSU email address: tanglon@oregonstate.edu
 ; Course number/section:   CS271 Section 400
 ; Project Number: 5                Due Date: 7/8/2022
 ; Description: This project will automatically generate an integer array
-;              - number of elements: a random number of ARRAYSIZE[200]
-;              - value of elements: in range LO[15] - HI[50]
+;              - number of elements: ARRAYSIZE[200]
+;              - value of elements: random value in range LO[15] - HI[50]
 ;            Output:
-;              - 1) Unsorted generated array; with the median value of the whole array (round off)
-;              - 2) Sorted array (in ascending order)
+;              - 1) Unsorted generated array;
+;              - 2) Sorted array (in ascending order) with the median value of the whole array (round off)
 ;              - 3) Counted array (count the occurrence of each element; if no such value; 0 is displayed)
+;
+;            Sorting Algorithm:
+;              - Example: 14 33 27 10 35 (14 as the sorted part; scan through the unsorted 33 - 35)
+;              -          find the smallest among the unsorted part
+;              -          swap with the rightmost part of the sorted array
+;              -          10 33 | 14 27 35 (10 now is in sorted part; put the leftmost unsorted value into sorted part (33) for next comparison)
+;              - Final:   10 14 27 33 35
+;
 ;
 
 INCLUDE Irvine32.inc
@@ -24,6 +32,9 @@ HI = 50
 ARRAYSIZE = 200
 MAX_COL = 20
 
+; for displayMedian
+ROUNDUPVAL = 5
+
 .data
 
 ; (insert variable definitions here)
@@ -34,12 +45,12 @@ intro2      BYTE    "This program generates ",  0
 intro3      BYTE    " random integers between ",  0
 intro4      BYTE    " and ",  0
 intro5      BYTE    ", inclusive.",  0
-intro6      BYTE    "The program will first display the random list, displays the median value of the list,",  0
+intro6      BYTE    "It then displays the original list, sorts the list, displays the median value of the list,",  0
 intro7      BYTE    "displays the list sorted in ascending order, and finally displays the number of instances",  0
-intro8      BYTE    "of each generated value, starting with the number of lowest.",  0
+intro8      BYTE    "of each generated value, starting with the number of lowest",  0
 
 ; for fillArray
-randArray   DWORD   ARRAYSIZE DUP (?)               ; declare array (# of elements = ARRAYSIZE; initialize as ?)
+randArray   DWORD   ARRAYSIZE DUP (?)               ; declare array (# of elements = ARRAYSIZE in uninitialized state)
 unsorted1   BYTE    "Your unsorted random numbers:",  0
 
 ; for displayArray
@@ -48,6 +59,15 @@ output1     BYTE    " ",  0
 ; for sortList
 sorted1     BYTE    "Your sorted random numbers:",  0
 
+; for displayMedian
+median1     BYTE    "The median value of the array: "
+
+; for countList
+count       DWORD   (HI - LO + 1) DUP (?)               ; the maximum possibility is having all unique number from LO to HI
+count1      BYTE    "Your list of instances of each generated number, starting with the smallest value:",  0
+
+; for farewell
+farewell1   BYTE    "Goodbye, and thanks for using my program!",  0
 
 .code
 main PROC
@@ -56,20 +76,47 @@ main PROC
 
     CALL    Randomize                               ; initialize starting seed value of RandomRange
 
-    CALL    introduction                            ; display greetings & general instructions
+    PUSH    OFFSET  intro1
+    PUSH    OFFSET  intro2
+    PUSH    OFFSET  intro3
+    PUSH    OFFSET  intro4
+    PUSH    OFFSET  intro5
+    PUSH    OFFSET  intro6
+    PUSH    OFFSET  intro7
+    PUSH    OFFSET  intro8
+    CALL    introduction
 
     PUSH    OFFSET  randArray                       ; push the address of the array on stack as parameter
-    CALL    fillArray                               ; to fill up the array by random numbers range LO - HI
+    PUSH    OFFSET  unsorted1
+    CALL    fillArray
 
-    PUSH    OFFSET  randArray                      
+    PUSH    OFFSET  randArray
+    PUSH    OFFSET  output1
     CALL    displayList
 
     PUSH    OFFSET  randArray
+    PUSH    OFFSET  sorted1
     CALL    sortList
 
-    PUSH    OFFSET  randArray                      
+    PUSH    OFFSET  randArray
+    PUSH    OFFSET  median1
+    CALL    displayMedian
+
+    PUSH    OFFSET  randArray
+    PUSH    OFFSET  output1
     CALL    displayList
 
+    PUSH    OFFSET  count
+    PUSH    OFFSET  randArray
+    PUSH    OFFSET  count1
+    CALL    countList
+
+    PUSH    OFFSET  count
+    PUSH    OFFSET  output1
+    CALL    displayList
+
+    PUSH    OFFSET  farewell1
+    CALL    farewell
 
 	Invoke ExitProcess,0	                        ; exit to operating system
 
@@ -83,66 +130,72 @@ introduction PROC
 ; To display the purpose and general instruction of the program
 ; preconditions: strings that describe the program and rules
 ; postconditions: EDX changed
-; receives: N/A
-; returns: N/A
+; receives: offset of the string
+; returns: the string messages
 ;============================================
 
-	MOV		EDX,  OFFSET  intro1
+    PUSH    EBP
+    MOV     EBP,  ESP                               ; set up the stack frame
+
+	MOV		EDX,  [EBP+36]                          ; EDX is now pointing to intro1
 	CALL	WriteString
 	CALL	CrLF
 
 	CALL	CrLF
-	MOV		EDX,  OFFSET  intro2
+	MOV		EDX,  [EBP+32]
 	CALL	WriteString
 	MOV     EAX,  ARRAYSIZE
 	CALL    WriteDec
-    MOV		EDX,  OFFSET  intro3
+    MOV		EDX,  [EBP+28]
 	CALL	WriteString
 	MOV     EAX,  LO
 	CALL    WriteDec
-    MOV		EDX,  OFFSET  intro4
+    MOV		EDX,  [EBP+24]
 	CALL	WriteString
 	MOV     EAX,  HI
 	CALL    WriteDec
-    MOV		EDX,  OFFSET  intro5
+    MOV		EDX,  [EBP+20]
 	CALL	WriteString
 
 
 	CALL	CrLF
-	MOV		EDX,  OFFSET  intro6
+	MOV		EDX,  [EBP+16]
 	CALL	WriteString
 
     CALL	CrLF
-	MOV		EDX,  OFFSET  intro7
+	MOV		EDX,  [EBP+12]
 	CALL	WriteString
 
     CALL	CrLF
-	MOV		EDX,  OFFSET  intro8
+	MOV		EDX,  [EBP+8]
 	CALL	WriteString
 	CALL	CrLF
-	RET
+
+	RET     32
 
 introduction ENDP
+
 
 ;============================================
 fillArray PROC
 
 ; To fill up the entire array by random numbers ranging from LO - HI
-; preconditions: 1) Push EBP; 2) ESI as address of randArray; 3) Change ECX to ARRAYSIZE; 4) Call RandomRange (Upper Bound to EAX)
+; preconditions: 1) Setup stack frame; 2) ESI as address of randArray; 3) Change ECX to ARRAYSIZE; 4) Call RandomRange (Upper Bound to EAX)
 ; postconditions: 1) Advance of ESI after each fill in
 ; receives: 1) ESI & advancement; 2) Random number (EAX)
-; returns: 1) using Indexed Operands [ESI], EAX to store the random number to randArray
+; returns: 1) store the random number to randArray
 ;============================================
-
-    CALL    CrLF
-    MOV     EDX,  OFFSET  unsorted1
-    CALL    WriteString
-    CALL    CrLF
 
     ; start generating random numbers looping for ARRAYSIZE times
     PUSH    EBP
     MOV     EBP,  ESP                               ; set EBP to allow base+offset operations
-    MOV     ESI,  [EBP+8]                           ; ESI is pointing to the 1st address of randArray
+
+    CALL    CrLF
+    MOV     EDX,  [EBP+8]
+    CALL    WriteString
+    CALL    CrLF
+
+    MOV     ESI,  [EBP+12]                           ; ESI is pointing to the 1st address of randArray
     MOV     ECX,  ARRAYSIZE                         ; set counter as ARRAYSIZE to fill up the whole array
     JMP     _generateRandom
 
@@ -157,9 +210,10 @@ fillArray PROC
     LOOP    _generateRandom                         ; the process should loop for ARRAYSIZE times
 
     POP     EBP
-    RET     4                                       ; return the memory address of randArray
+    RET     8                                       ; return the memory address of randArray
 
 fillArray ENDP
+
 
 ;============================================
 displayList PROC
@@ -174,7 +228,7 @@ displayList PROC
     PUSH    EBP
     MOV     EBP,  ESP
     MOV     EBX,  0                                 ; set EBX as the row counter
-    MOV     ESI,  [EBP+8]
+    MOV     ESI,  [EBP+12]
     MOV     ECX,  ARRAYSIZE
     JMP     _displayArray
 
@@ -182,7 +236,7 @@ displayList PROC
 
     MOV     EAX,  [ESI]                             ; copy the value from that address to EAX for WriteDec
     CALL    WriteDec
-    MOV     EDX,  OFFSET  output1
+    MOV     EDX,  [EBP+8]
     CALL    WriteString
     INC     EBX
     CMP     EBX,  MAX_COL
@@ -199,9 +253,10 @@ displayList PROC
     LOOP    _displayArray
 
     POP     EBP
-    RET     4
+    RET     8
 
 displayList ENDP
+
 
 ;============================================
 exchangeElements PROC
@@ -217,8 +272,8 @@ exchangeElements PROC
     MOV     EBP,  ESP
     PUSHAD                                          ; reserve all the registers
 
-    MOV     ESI,  [EBP+16]                          ; ESI is now pointing to the address of the array 
-    
+    MOV     ESI,  [EBP+16]                          ; ESI is now pointing to the address of the array
+
     MOV     EDI,  [EBP+8]                           ; EDX now storing the difference in bytes between randArray[0] to current comparing value
     MOV     EDX,  [ESI+EDI]                         ; EDX is now storing the comparing value
 
@@ -235,34 +290,36 @@ exchangeElements PROC
 
 exchangeElements ENDP
 
+
 ;============================================
 sortList PROC
 
-; To sort the array in ascending order
-; preconditions: using selection sort (outer and inner loop): push ECX
+; To sort the array in ascending order (using selection sort)
+; preconditions: store the address of the rightmost sorted part in EDI, EBX as the value of the rightmost sorted part
+;                once smaller value is found, EBX is updated, EAX stores the difference in bytes between the rightmost sorted part to the location of the 'smaller' value
 ; postconditions: POP ECX to restore the outer loop
-; receives: 1) ESI & advancement;
-; returns: 1) the sorted array
+; receives: 1) offset of randArray; 2) offset of string
+; returns: 1) the sorted randArray
 ;============================================
 
     PUSH    EBP
     MOV     EBP,  ESP
-    MOV     ESI,  [EBP+8]                           ; ESI is pointing to the 1st address of randArray
-    MOV     EDX,  0                                 ; store the counter for checking item (array starts with 0)
+    MOV     ESI,  [EBP+12]                          ; ESI is pointing to the 1st address of randArray
+    MOV     EDX,  0                                 ; store the difference in bytes between randArray[0] to rightmost sorted part
     MOV     ECX,  ARRAYSIZE
     DEC     ECX                                     ; selection sort will only do ARRAYSIZE - 1 times
 
     _outerLoop:
 
     PUSH    ECX                                     ; save the outer loop counter
-    PUSH    ESI                                     ; push the current address on stack (for comparing with other elements)
-    MOV     EDI,  ESI                               ; initialize EDI to store the address of the target item (to compare with others)
+    PUSH    ESI                                     ; push the current address on stack (rightmost sorted part)
+    MOV     EDI,  ESI                               ; initialize EDI to store the address of the rightmost sorted part
     MOV     EBX,  [EDI]                             ; store the value of that address to EBX
     JMP     _innerLoop
 
     _innerLoop:
 
-    ADD     ESI,  4                                 ; advance ESI to next address for comparison
+    ADD     ESI,  4                                 ; advance ESI to next address for comparison (checking the unsorted part)
     CMP     [ESI],  EBX
     JL      _updateMin
     JMP     _innerLoopContinue
@@ -278,33 +335,177 @@ sortList PROC
     PUSH    OFFSET  randArray
     PUSH    EAX
     PUSH    EDX
-    CALL    exchangeElements                        ; exchange the elements once the min value is found
+    CALL    exchangeElements                        ; exchange the elements once the 'smaller' value among the unsorted part is found
     JMP     _resumeSwap
 
     _resumeSwap:
-    POP     ESI                                     ; restore the swapped address
-    ADD     ESI,  4                                 ; check for next address with the remaining
+    POP     ESI                                     ; restore ESI
+    ADD     ESI,  4                                 ; advance the rightmost sorted part to the next item for checking with the remaining unsorted part
     POP     ECX                                     ; restore loop counter
-    ADD     EDX,  4                                 ; advance the checking item
+    ADD     EDX,  4                                 ; advance the difference of bytes between randArray[0] to current rightmost sorted part
     LOOP    _outerLoop
 
-    CALL    CrLF                                    
-    MOV     EDX,  OFFSET  sorted1
+    CALL    CrLF
+    MOV     EDX,  [EBP+8]
     CALL    WriteString
     CALL    CrLf
 
     POP     EBP
-    RET     4
+    RET     8
 
     _updateMin:
 
-    MOV     EAX,  ESI                             
-    SUB     EAX,  EDI                               ; EAX now stores the difference of bytes from the comparing item to smaller item
-    MOV     EBX,  [ESI]
+    MOV     EAX,  ESI
+    SUB     EAX,  EDI                               ; EAX now stores the difference of bytes from the rightmost sorted part to 'smaller' value
+    MOV     EBX,  [ESI]                             ; update EBX to check with remaining unsorted [ESI]
     JMP     _innerLoopContinue
 
 sortList ENDP
 
 
+;============================================
+displayMedian PROC
+
+; To display the median value of the randArray
+; preconditions: the offset of the randArray and it is sorted
+; postconditions: check if the ARRAYSIZE is odd/even to determine the median value
+; receives: 1) the offset of the randArray and it is sorted
+; returns: 1) the median value (in round off)
+;============================================
+
+    PUSH    EBP
+    MOV     EBP,  ESP
+    MOV     ESI,  [EBP+12]
+
+    MOV     EAX,  ARRAYSIZE                         ; determine whether ARRAYSIZE is odd or even
+    MOV     EBX,  2
+    MOV     EDX,  0
+    DIV     EBX                                     ; quotient (EAX) is storing the index of ARRAYSIZE for the median value (odd & even for difference cases)
+    CMP     EDX,  0
+    JZ      _isEven
+    JMP     _isOdd
+
+    _isEven:
+
+    MOV     EDX,  EAX * TYPE randArray
+    MOV     EBX,  [ESI + EDX]                       ; ECX is now storing the value of randArray[EAX] (in index representation)
+    ADD     EDX,  4
+    MOV     ECX,  [ESI + EDX]                       ; ECX is now storing the value of randArray[EAX+1] (in index representation)
+
+    MOV     EDI,  EBX
+    ADD     EDI,  ECX
+    MOV     EAX,  EDI
+    MOV     EBX,  2
+    MOV     EDX,  0
+    DIV     EBX
+    MOV     EDI,  EAX                               ; EDI is now storing (EBX+ECX)/2
+
+    MOV     EAX,  EDX                               ; this part is for checking whether need to round up or not
+    MUL     EAX,  10
+    MOV     EBX,  2
+    DIV     EBX
+    CMP     EAX,  ROUNDUPVAL
+    JGE     _roundOff
+    JMP     _noRoundOff
+
+    _roundOff:
+
+    INC     EDI
+    MOV     EAX,  EDI                               ; for WriteDec
+    JMP     _displayResult
+
+    _noRoundOff:
+
+    MOV     EAX,  EDI
+    JMP     _displayResult
+
+    isOdd:
+
+    MOV     EDX,  EAX * TYPE randArray
+    MOV     EAX,  [ESI + EDX]
+    JMP     _displayResult
+
+    _displayResult:
+
+    MOV     EDX, [EBP+8]
+    CALL    WriteString
+    CALL    WriteDec
+    CALL    CrLF
+
+    RET     8
+
+displayMedian ENDP
+
+
+;============================================
+countList PROC
+
+; To count the occurrence of the values from the sorted randArray
+; preconditions: the offset of the randArray and it is sorted
+; postconditions: reset the counter to 0 for each value
+; receives: 1) the offset of the randArray and it is sorted
+; returns: 1) the count array
+;============================================
+
+    PUSH    EBP
+    MOV     EBP,  ESP
+
+    MOV     EDX,  [EBP+8]
+    CALL    WriteString
+    CALL    CrLF
+
+    MOV     ESI,  [EBP+12]                          ; ESI is now pointing to randArray
+    MOV     EAX,  [ESI]                             ; EAX is storing the value within the address
+    MOV     EDI,  [EBP+ ARRAYSIZE * TYPE randArray] ; EDI is now pointing to count
+    MOV     ECX,  ARRAYSIZE
+    MOV     EBX,  1                                 ; counter for the unique value in randArray
+    MOV     EDX,  0                                 ; to calculate the difference in bytes in count from count[0] to current
+    JMP     _loopCount
+
+    _loopCount:
+
+    ADD     ESI,  4
+    CMP     EAX,  [ESI]
+    JE      _addCounter
+    JMP     _writeCount
+
+    _addCounter:
+
+    INC     EBX
+    LOOP    _loopCount
+
+    _writeCount:
+
+    MOV     [EDI+EDX],  EBX
+    ADD     EDX,  4                                 ; advance EDX for accessing next elements in count array
+    MOV     EBX,  0                                 ; reset EBX for next unique value
+    MOV     EAX,  [ESI+4]                           ; update EAX to store the next unique value
+    LOOP    _loopCounter
+
+    RET     12
+
+countList ENDP
+
+
+;============================================
+farewell PROC
+
+; To display the farewell message
+; preconditions: strings that describe the program and rules
+; postconditions: EDX changed
+; receives: offset of the string
+; returns: the string messages
+;============================================
+
+    PUSH    EBP
+    MOV     EBP,  ESP                               ; set up the stack frame
+
+    CALL    CrLF
+    MOV     EDX,  [EBP+8]
+    CALL    WriteString
+
+    RET     4
+
+farewell ENDP
 
 END main
