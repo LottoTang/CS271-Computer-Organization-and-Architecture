@@ -29,7 +29,7 @@ INCLUDE Irvine32.inc
 ; (insert constant definitions here)
 LO = 15
 HI = 50
-ARRAYSIZE = 6
+ARRAYSIZE = 20
 MAX_COL = 20
 
 ; for displayMedian
@@ -50,7 +50,7 @@ intro7      BYTE    "displays the list sorted in ascending order, and finally di
 intro8      BYTE    "of each generated value, starting with the number of lowest",  0
 
 ; for fillArray
-randArray   DWORD   ARRAYSIZE DUP (?)               ; declare array (# of elements = ARRAYSIZE in uninitialized state)
+randArray   DWORD   ARRAYSIZE DUP (?)                       ; declare array (# of elements = ARRAYSIZE in uninitialized state)
 unsorted1   BYTE    "Your unsorted random numbers:",  0
 
 ; for displayArray
@@ -98,12 +98,10 @@ main PROC
     CALL    countList
 
     PUSH    OFFSET  count
-    CALL    displayList
+    CALL    displayListCount
     
-    COMMENT !
     PUSH    OFFSET  farewell1
     CALL    farewell
-    !
 
 	Invoke ExitProcess,0	                        ; exit to operating system
 
@@ -463,32 +461,79 @@ countList PROC
     MOV     EDI,  [EBP+12]                          ; EDI is now pointing to count
     MOV     ECX,  ARRAYSIZE
     MOV     EBX,  1                                 ; counter for the unique value in randArray
-    MOV     EDX,  0                                 ; to calculate the difference in bytes in count from count[0] to current
+    MOV     EDX,  4                                 ; to calculate the difference in bytes in count from count[0] to current
     JMP     _loopCount
 
     _loopCount:
 
-    CMP     EAX,  [ESI + EBX * TYPE randArray]
+    CMP     EAX,  [ESI + EDX]
     JE      _addCounter
     JMP     _writeCount
 
     _addCounter:
 
     INC     EBX
+    ADD     EDX,  TYPE  randArray
     LOOP    _loopCount
 
     _writeCount:
 
-    MOV     [EDI+EDX],  EBX
-    ADD     EDX,  TYPE  count                       ; advance EDX for accessing next elements in count array
-    MOV     EBX,  0                                 ; reset EBX for next unique value
-    MOV     EAX,  [ESI+ TYPE  count]                ; update EAX to store the next unique value
+    MOV     [EDI],  EBX
+    ADD     EDI,  TYPE  count                       ; advance EDX for accessing next elements in count array
+    MOV     EBX,  1                                 ; reset EBX for next unique value
+    MOV     EAX,  [ESI + EDX]                       ; update EAX to store the next unique value
+    ADD     EDX,  TYPE  randArray
     LOOP    _loopCount
 
     POP     EBP
     RET     8
 
 countList ENDP
+
+;============================================
+displayListCount PROC
+
+; To display the entire array count
+; preconditions: 1) Push EBP; 2) ESI as address of randArray; 3) Change ECX to (HI - LO + 1); 4) Display 20 elements per row as maximum
+; postconditions: 1) EAX changed for WriteDec; 2) Advance of ESI after each fill in; 3) increment of row counter EBX
+; receives: 1) Address of the array ESI and its value
+; returns: 1) the output of value in the address from WriteDec
+;============================================
+
+    PUSH    EBP
+    MOV     EBP,  ESP
+    MOV     EBX,  0                                 ; set EBX as the row counter
+    MOV     ESI,  [EBP+8]
+    MOV     EAX,  HI
+    SUB     EAX,  LO
+    ADD     EAX,  1
+    MOV     ECX,  EAX
+    JMP     _displayArray
+
+    _displayArray:
+
+    MOV     EAX,  [ESI]                             ; copy the value from that address to EAX for WriteDec
+    CALL    WriteDec
+    MOV     EDX,  OFFSET  output1
+    CALL    WriteString
+    INC     EBX
+    CMP     EBX,  MAX_COL
+    JE      _nextRow
+    JMP     _nextNumber
+
+    _nextRow:
+    CALL    CrLF
+    MOV     EBX,  0
+    JMP     _nextNumber
+
+    _nextNumber:
+    ADD     ESI,  4
+    LOOP    _displayArray
+
+    POP     EBP
+    RET     4
+
+displayListCount ENDP
 
 
 ;============================================
@@ -505,8 +550,12 @@ farewell PROC
     MOV     EBP,  ESP                               ; set up the stack frame
 
     CALL    CrLF
+
+    CALL    CrLF
     MOV     EDX,  [EBP+8]
     CALL    WriteString
+
+    CALL    CrLF
 
     RET     4
 
