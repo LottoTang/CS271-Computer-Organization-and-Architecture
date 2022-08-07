@@ -100,6 +100,7 @@ MAX_CHAR	=	12															; MAX RANGE FOR 32BIT SIGNED: -2147483648 TO 2147483
 MAX_INPUT	=	10															; 10 INPUTS ARE REQUIRED
 LARGEST		=	2147483647
 SMALLEST	=	-2147483648
+EDGE_MIN	=	2147483648
 
 .data
 
@@ -141,16 +142,19 @@ main PROC
 	; Procedure: ReadVal (as requested, loop will perform in main)
 
 	MOV			ECX,	MAX_INPUT
+	MOV			EDX,	OFFSET	userVal
 
-
+	_askVal:
 	PUSH		OFFSET	prompt1
 	PUSH		OFFSET	userString
 	PUSH		OFFSET	userInputLength
-	PUSH		OFFSET	userVal
+	PUSH		EDX
 	PUSH		OFFSET	error1
 	PUSH		OFFSET	error2
 	PUSH		OFFSET	sign
 	CALL		ReadVal
+	ADD			EDX,	4
+	LOOP		_askVal
 
 
 
@@ -234,7 +238,6 @@ ReadVal PROC
 	MOV			ESI,	[EBP+28]											; userString [EBP+28] is holding the input string
 	MOV			ECX,	[EBP+24]											; userInputLength [EBP+24] is holding the length of the input
 	MOV			EDI,	[EBP+20]
-
 	MOV			EBX,	10													; FOR MULTIPLICATION CALCULATION
 	MOV			EAX,	0													; INITIALIZATION (FOR LODSB)
 	MOV			EDX,	0													; AS SUM ACCUMULATOR
@@ -255,16 +258,14 @@ ReadVal PROC
 
 	_isNegative:
 
-	PUSH		EAX
 	MOV			EAX,  1
 	MOV			[EBP+8],  EAX
-	POP			EAX
+	JMP			_advanceNextDigit
 
 	; AL IS HOLDING 0 - 9 NOW
 	_validDigit:
 
 	SUB			AL,  48
-
 	PUSH		EAX															; SAVE THE CURRENT DIGIT IN AL
 	MOV			EAX,	[EDI]												; MOVE THE PREVIOUS ACCUMULATED VALUE TO EDX
 	MUL			EBX
@@ -274,6 +275,10 @@ ReadVal PROC
 	_addUp:
 	
 	ADD			EDX,	EAX
+	CMP			ECX,	1													; EDGE CASE, FOR -2147483648 AS THE PROGRAM WILL NEGATE AT THE LAST
+	JE			_edgeCase
+
+	_addUpContd:
 	CMP			EDX,	LARGEST
 	JA			_notValid
 	CMP			EDX,	SMALLEST
@@ -288,6 +293,10 @@ ReadVal PROC
 	MOV			EDX,	[EBP+12]
 	CALL		WRITESTRING
 
+	MOV			EAX,	0
+	MOV			[EDI],	EAX													; clear the invalid values within the array
+	MOV			EDX,	0													; AS SUM ACCUMULATOR
+
 	mGetStringSimplified	[EBP+28], MAX_CHAR, [EBP+24]					; INVOKE mGetStringSimplified (for error spotted)
 	
 	MOV			ESI,	[EBP+28]											; userString [EBP+28] is holding the input string
@@ -297,12 +306,33 @@ ReadVal PROC
 	_advanceNextDigit:
 
 	MOV			[EDI],	EDX													; SAVE THE LATEST ACCUMULATED SUM
-
 	LOOP		_stringToValInner
+	MOV			EAX,	1
+	CMP			[EBP+8],	EAX
+	JE			_negate
+	JMP			_finish1Loop
+
+	_edgeCase:
+	MOV			EAX,  1
+	CMP			[EBP+8],  EAX
+	JNE			_addUpContd
+	CMP			EDX,	EDGE_MIN
+	JA			_notValid
+	JMP			_advanceNextDigit
+
+	_negate:
+
+	PUSHAD
 
 	MOV			EAX,  [EDI]
-	CALL		WRITEINT
-
+	MOV			EBX,	-1
+	MUL			EBX
+	MOV			[EDI],	EAX
+	MOV			EAX,  0
+	MOV			[EBP+8],	EAX												; RESET THE VALUE OF SIGN
+	POPAD
+	
+	_finish1Loop:
 	POPAD
 	POP			EBP
 	RET			28
