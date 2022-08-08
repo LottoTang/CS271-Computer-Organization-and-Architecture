@@ -127,13 +127,13 @@ sign				BYTE	0	                                                ; SET 0 AS POSITI
 ; for WriteVal
 space               BYTE    ", ",  0
 writeValMessage1    BYTE    "You entered the following numbers: ",  0
-tempString          BYTE    1   DUP (?)
+tempString          BYTE    MAX_CHAR   DUP (?)
 
 ; for calSumAverage
 sumMessage1         BYTE    "The sum of these numbers is: ",  0
 averageMessage1     BYTE    "The truncated average is: ",  0
-sum                 SDWORD  ?
-average             SDWORD  ?
+sum                 SDWORD  0
+average             SDWORD  0
 
 .code
 main PROC
@@ -167,22 +167,17 @@ main PROC
 	ADD			EDX,	4
 	LOOP		_askVal
 	; ------------------------------------------------
-	; Procedure: WriteVal
-	PUSH       OFFSET   space
-	PUSH       OFFSET   tempString
-    PUSH       OFFSET   userVal
-    PUSH       OFFSET   writeValMessage1
-    CALL       WriteVal
-
 
 	; ------------------------------------------------
 	; Procedure: calSumAverage
-	PUSH       OFFSET   averageMessage1
-	PUSH       OFFSET   average
-	PUSH       OFFSET   sumMessage1
-	PUSH       OFFSET   sum
-	PUSH       OFFSET   userVal
-	CALL       calSumAverage
+	PUSH		OFFSET	sign
+	PUSH		OFFSET  tempString
+	PUSH		OFFSET  averageMessage1
+	PUSH		OFFSET  average
+	PUSH		OFFSET  sumMessage1
+	PUSH		OFFSET  sum
+	PUSH		OFFSET  userVal
+	CALL		calSumAverage
 
 
 
@@ -373,16 +368,15 @@ ReadVal ENDP
 WriteVal PROC
 
 ; 1) convert values in userVal to its ASCII digits representation;
-; 2) store the ASCII conversion to tempString [EBP+16]
+; 2) store the ASCII conversion to tempString [EBP+12]
 ; 3) invoke mDisplayString to display the converted string
 
 ; preconditions: setup stack frame and access parameters on runtime stack using Base+Offset; array in Register Indirect accessing
 ; postconditions: the offset of the converted string
 
-; receives: 1) push offset writeValMessage1 [EBP+8]
-;           2) push offset userVal [EBP+12]
-;           3) push offset tempString [EBP+16]
-;           4) push offset space [EBP+20]
+; receives: 1) push offset userVal [EBP+8]
+;           2) push offset tempString [EBP+12]
+;			3) push offset sign	[EBP+16] (0 AS POSITIVE; 1 AS NEGATIVE)
 ;
 ; returns: 1) N/A (display string output for all 10 values)
 ;============================================
@@ -390,22 +384,78 @@ WriteVal PROC
     PUSH        EBP
     MOV         EBP,    ESP
 
-    MOV         ESI,    [EBP+12]                                            ; ESI is now pointing to the userVal
-    MOV         EDI,    [EBP+16]
-    MOV         ECX,    MAX_INPUT
+	PUSHAD
 
-    LODSB
+	MOV			ESI,	[EBP+8]
+	MOV			EDI,	[EBP+12]
+	MOV			EBX,	[EBP+16]
+	MOV			EBX,	0													; DEFAULT THE VALUE IS POSITIVE
 
-    _signCheck:
-    PUSH        ECX
-    CMP         AL,  45
-    JE          _addSign
+	MOV			EAX,	ESI												; STORE THE VALUE IN EAX
+	MOV			ECX,	1													; FOR COUNTUNG PURPOSE
 
+	_signCheck:
 
+	CMP			EAX,	0
+	JL			_negativeVal
+	JMP			_convert2ASCII
 
+	_negativeVal:
 
+	NEG			EAX															; NEGATE TO POSITIVE VALUE FOR EASIER PROCESSING (SIGN WILL BE HANDLED LATER)
+	MOV			EBX,	1
+	MOV			[EBP+16],	EBX												; STORE THE RESULT BACK TO SIGN
+	
+
+	;============================================
+	; EXAMPLE EAX = 280
+	; 1ST DIVISION: EAX = 28; EDX = 0										; PUSH TO STACK; ECX = 2
+	; 2ND DIVISION:	EAX = 2;  EDX = 8										; PUSH TO STACK; ECX = 3
+	; 3RD DIVISION:	EAX = 0;  EDX = 2										; JMP TO _lastDigit; PUSH TO STACK; (STACK: top: 2 8 0 bottom); ECX = 3)
+	;============================================
+	
+	_convert2ASCII:
+
+	MOV			EBX,	10
+	CDQ
+	IDIV		EBX															; EAX IS STORING THE QUOTIENT; EDX IS STORING THE REMAINDER
+
+	CMP			EAX,	0
+	JE			_lastDigit													; E.G. 2/10 --> EAX = 0; EDX = 2 (NO MORE DIGIT TO BE DIVIDED)
+	JMP			_convertCond
+
+	_convertCond:
+
+	ADD			EDX,	48													; JUMP HERE IF DIVISION IS STILL AVAILABLE
+	PUSH		EDX
+	ADD			ECX,	1
+	JMP			_convert2ASCII												; FOR FURTHER DIVISION	
+
+	_lastDigit:
+
+	ADD			EDX,	48
+	PUSH		EDX															; PUSH THE VALUE TO STRING TO STACK
+
+	MOV			EBX,	[EBP+16]
+	CMP			EBX,	1
+	JE			_addNegativeSign											; NEED TO HANDLE THE NEGATIVE SIGN
+	JMP			_pop2String
+
+	_addNegativeSign:
+
+	PUSH		45															; '-' TO STACK
+	ADD			ECX,	1
+
+	_pop2String:
+	POP			EAX
+	STOSB																	; STORE THE VALUE IN AL TO EDI
+	LOOP		_pop2String
+
+	mdisplayString	[EBP+12]
+
+	POPAD
     POP         EBP
-    RET         16
+    RET         12
 
 WriteVal ENDP
 
@@ -418,7 +468,8 @@ calSumAverage PROC
 ; preconditions: setup stack frame and access parameters on runtime stack using Base+Offset; array in Register Indirect accessing
 ; postconditions: variable sum will be modified
 
-; receives: 1) push offset of average [EBP+20]
+; receives: 1) push offset of averageMessage1 [EBP+24]
+;			1) push offset of average [EBP+20]
 ;           2) push offset of string [EBP+16]
 ;           3) push offset of sum [EBP+12]
 ;           4) push offset of userVal [EBP+8]
@@ -427,10 +478,12 @@ calSumAverage PROC
 ;============================================
 
     PUSH        EBP
+
     MOV         EBP,    ESP
     MOV         ESI,    [EBP+8]                                             ; ESI IS NOW STORING userVal
-    MOV         EAX,    [EBP+12]                                            ; EAX IS NOW STORING sum (AS ACCUMULATR)
     MOV         ECX,    MAX_INPUT                                           ; MAX_INPUT AS GLOBAL VARIABLE (AS REQUIRED, 10 INPUTS ARE REQUIRED)
+	MOV			EAX,	0
+	MOV			EBX,	0
 
     _calSum:
 
@@ -439,26 +492,34 @@ calSumAverage PROC
     ADD         ESI,    4                                                   ; ADVANCE ESI
     LOOP        _calSum
 
-    MOV         [EBP+8],    EAX                                             ; PLACE THE TOTAL BACK TO SUM
+
+    MOV         [EBP+12],   EAX                                             ; PLACE THE TOTAL BACK TO SUM
+
+	mDisplayString  [EBP+16]
+
+	PUSH		[EBP+32]
+	PUSH		[EBP+28]
+	PUSH		[EBP+12]
+	CALL		WriteVal
+    CALL        CrLF
+	JMP			_calAverage
 
     _calAverage:
 
-    MOV         EAX,    [EBP+20]
     CDQ
-    IDIV        MAX_INPUT
+    MOV			EBX,	MAX_INPUT
+	IDIV		EBX
     MOV         [EBP+20],   EAX
 
-    mDisplayString  [EBP+16]
-    ;mDisplayString (sum)
+	mDisplayString  [EBP+24]
+	PUSH		[EBP+32]
+	PUSH		[EBP+28]
+	PUSH		[EBP+20]
+	CALL		WriteVal
     CALL        CrLF
-
-    mDisplayString  [EBP+16]
-    ;mDisplayString (sum)
-    CALL        CrLF
-
 
     POP         EBP
-    RET         20
+    RET         28
 
 calSumAverage ENDP
 
