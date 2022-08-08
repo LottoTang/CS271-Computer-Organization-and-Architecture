@@ -13,7 +13,7 @@ INCLUDE Irvine32.inc
 ; (insert macro definitions here)
 
 ;============================================
-mGetString	MACRO	prompt1, userString, userInputCount, userInputLength	
+mGetString	MACRO	prompt1, userString, userInputCount, userInputLength
 
 ; To read input string
 ; preconditions: N/A
@@ -45,7 +45,7 @@ mGetString	MACRO	prompt1, userString, userInputCount, userInputLength
 ENDM
 
 ;============================================
-mGetStringSimplified	MACRO	userString, userInputCount, userInputLength	
+mGetStringSimplified	MACRO	userString, userInputCount, userInputLength
 
 ; To read input string (for invalid data input spotted)
 ; preconditions: N/A
@@ -74,7 +74,7 @@ mGetStringSimplified	MACRO	userString, userInputCount, userInputLength
 ENDM
 
 ;============================================
-mDisplayString	MACRO	outputString										
+mDisplayString	MACRO	outputString
 
 ; To display the string (this macro aims for displaying the validated input string, not intended for general instructions/ simple text)
 ; preconditions: N/A
@@ -82,7 +82,7 @@ mDisplayString	MACRO	outputString
 ; receives: 1) outputString						: as the offset of the string
 
 ; returns:	N/A (simply output to screen)
-	
+
 	PUSH		EDX
 
 	MOV			EDX,  outputString
@@ -122,13 +122,24 @@ prompt1				BYTE	"Please enter an signed number: ",  0
 userVal				SDWORD	MAX_INPUT	DUP	(0)									; FOR STORING THE CONVERTED VALUES FROM userString
 error1				BYTE	"ERROR: You did not enter a signed number or your number was too big.",  0
 error2				BYTE	"Please try again: ",  0
-sign				BYTE	0													; SET 0 AS POSITIVE, -1 AS NEGATIVE
+sign				BYTE	0	                                                ; SET 0 AS POSITIVE, -1 AS NEGATIVE
+
+; for WriteVal
+space               BYTE    ", ",  0
+writeValMessage1    BYTE    "You entered the following numbers: ",  0
+tempString          BYTE    1   DUP (?)
+
+; for calSumAverage
+sumMessage1         BYTE    "The sum of these numbers is: ",  0
+averageMessage1     BYTE    "The truncated average is: ",  0
+sum                 SDWORD  ?
+average             SDWORD  ?
 
 .code
 main PROC
 
 ; (insert executable instructions here)
-	
+
 	; ------------------------------------------------
 	; Procedure: introduction
 	PUSH		OFFSET	intro1
@@ -137,8 +148,8 @@ main PROC
 	PUSH		OFFSET	intro4
 	PUSH		OFFSET	intro5
 	CALL		introduction
-	; ------------------------------------------------
 
+    ; ------------------------------------------------
 	; Procedure: ReadVal (as requested, loop will perform in main)
 
 	MOV			ECX,	MAX_INPUT
@@ -155,6 +166,23 @@ main PROC
 	CALL		ReadVal
 	ADD			EDX,	4
 	LOOP		_askVal
+	; ------------------------------------------------
+	; Procedure: WriteVal
+	PUSH       OFFSET   space
+	PUSH       OFFSET   tempString
+    PUSH       OFFSET   userVal
+    PUSH       OFFSET   writeValMessage1
+    CALL       WriteVal
+
+
+	; ------------------------------------------------
+	; Procedure: calSumAverage
+	PUSH       OFFSET   averageMessage1
+	PUSH       OFFSET   average
+	PUSH       OFFSET   sumMessage1
+	PUSH       OFFSET   sum
+	PUSH       OFFSET   userVal
+	CALL       calSumAverage
 
 
 
@@ -174,7 +202,7 @@ introduction PROC
 ;============================================
 
 	PUSH		EBP															; SET UP STACK FRAME
-	MOV			EBP,	ESP										
+	MOV			EBP,	ESP
 
 	MOV			EDX,	[EBP+24]
 	CALL		WRITESTRING
@@ -200,7 +228,7 @@ introduction PROC
 
 	CALL		CRLF
 
-	POP			EBP											
+	POP			EBP
 	RET			20															; CLEAR PARAMTERS ON STACK
 
 introduction ENDP
@@ -209,7 +237,7 @@ introduction ENDP
 
 ReadVal PROC
 
-; 1) To call mGetString to get user input in form of a string of digits; 
+; 1) To call mGetString to get user input in form of a string of digits;
 ; 2) convert string of ASCII digits to its numeric value representation;
 ; 3) validate the number
 ; 4) store the value in memory
@@ -217,7 +245,7 @@ ReadVal PROC
 ; preconditions: setup stack frame and access parameters on runtime stack using Base+Offset; array in Register Indirect accessing
 ; postconditions: numArray will store the validated values
 
-; receives: 1) push offset of prompt1 [EBP+32]; userString [EBP+28]; userInputLength [EBP+24] (for calling mGetString) 
+; receives: 1) push offset of prompt1 [EBP+32]; userString [EBP+28]; userInputLength [EBP+24] (for calling mGetString)
 ;			2) push offset of userVal [EBP+20]
 ;			3) push offset of error1 [EBP+16]; error2 [EBP+12]
 ;			4) push offset of sign [EBP+8] (0 AS POSITIVE; 1 AS NEGATIVE)
@@ -241,7 +269,7 @@ ReadVal PROC
 	MOV			EBX,	10													; FOR MULTIPLICATION CALCULATION
 	MOV			EAX,	0													; INITIALIZATION (FOR LODSB)
 	MOV			EDX,	0													; AS SUM ACCUMULATOR
-	
+
 
 	_stringToValInner:
 
@@ -259,7 +287,7 @@ ReadVal PROC
 	_isNegative:
 
 	MOV			EAX,  1
-	MOV			[EBP+8],  EAX
+	MOV			[EBP+8],  EAX                                               ; SET sign AS 1, INDICATING NEGATIVE NUMBER
 	JMP			_advanceNextDigit
 
 	; AL IS HOLDING 0 - 9 NOW
@@ -273,7 +301,7 @@ ReadVal PROC
 	POP			EAX
 
 	_addUp:
-	
+
 	ADD			EDX,	EAX
 	CMP			ECX,	1													; EDGE CASE, FOR -2147483648 AS THE PROGRAM WILL NEGATE AT THE LAST
 	JE			_edgeCase
@@ -284,7 +312,7 @@ ReadVal PROC
 	CMP			EDX,	SMALLEST
 	JL			_notValid
 	JMP			_advanceNextDigit
-	
+
 	_notValid:
 
 	MOV			EDX,	[EBP+16]
@@ -298,7 +326,7 @@ ReadVal PROC
 	MOV			EDX,	0													; AS SUM ACCUMULATOR
 
 	mGetStringSimplified	[EBP+28], MAX_CHAR, [EBP+24]					; INVOKE mGetStringSimplified (for error spotted)
-	
+
 	MOV			ESI,	[EBP+28]											; userString [EBP+28] is holding the input string
 	MOV			ECX,	[EBP+24]											; userInputLength [EBP+24] is holding the length of the input
 	JMP			_stringToValInner
@@ -331,12 +359,111 @@ ReadVal PROC
 	MOV			EAX,  0
 	MOV			[EBP+8],	EAX												; RESET THE VALUE OF SIGN
 	POPAD
-	
+
 	_finish1Loop:
 	POPAD
 	POP			EBP
 	RET			28
 
 ReadVal ENDP
+
+
+;============================================
+
+WriteVal PROC
+
+; 1) convert values in userVal to its ASCII digits representation;
+; 2) store the ASCII conversion to tempString [EBP+16]
+; 3) invoke mDisplayString to display the converted string
+
+; preconditions: setup stack frame and access parameters on runtime stack using Base+Offset; array in Register Indirect accessing
+; postconditions: the offset of the converted string
+
+; receives: 1) push offset writeValMessage1 [EBP+8]
+;           2) push offset userVal [EBP+12]
+;           3) push offset tempString [EBP+16]
+;           4) push offset space [EBP+20]
+;
+; returns: 1) N/A (display string output for all 10 values)
+;============================================
+
+    PUSH        EBP
+    MOV         EBP,    ESP
+
+    MOV         ESI,    [EBP+12]                                            ; ESI is now pointing to the userVal
+    MOV         EDI,    [EBP+16]
+    MOV         ECX,    MAX_INPUT
+
+    LODSB
+
+    _signCheck:
+    PUSH        ECX
+    CMP         AL,  45
+    JE          _addSign
+
+
+
+
+    POP         EBP
+    RET         16
+
+WriteVal ENDP
+
+;============================================
+calSumAverage PROC
+
+; 1) To calculate the sum and average from userVal
+; 2) Display the results via mDisplayString
+
+; preconditions: setup stack frame and access parameters on runtime stack using Base+Offset; array in Register Indirect accessing
+; postconditions: variable sum will be modified
+
+; receives: 1) push offset of average [EBP+20]
+;           2) push offset of string [EBP+16]
+;           3) push offset of sum [EBP+12]
+;           4) push offset of userVal [EBP+8]
+;
+; returns: 1) sum is updated; output the value of sum
+;============================================
+
+    PUSH        EBP
+    MOV         EBP,    ESP
+    MOV         ESI,    [EBP+8]                                             ; ESI IS NOW STORING userVal
+    MOV         EAX,    [EBP+12]                                            ; EAX IS NOW STORING sum (AS ACCUMULATR)
+    MOV         ECX,    MAX_INPUT                                           ; MAX_INPUT AS GLOBAL VARIABLE (AS REQUIRED, 10 INPUTS ARE REQUIRED)
+
+    _calSum:
+
+    MOV         EBX,    [ESI]                                               ; MOVE ELEMENTS FROM userVal
+    ADD         EAX,    EBX
+    ADD         ESI,    4                                                   ; ADVANCE ESI
+    LOOP        _calSum
+
+    MOV         [EBP+8],    EAX                                             ; PLACE THE TOTAL BACK TO SUM
+
+    _calAverage:
+
+    MOV         EAX,    [EBP+20]
+    CDQ
+    IDIV        MAX_INPUT
+    MOV         [EBP+20],   EAX
+
+    mDisplayString  [EBP+16]
+    ;mDisplayString (sum)
+    CALL        CrLF
+
+    mDisplayString  [EBP+16]
+    ;mDisplayString (sum)
+    CALL        CrLF
+
+
+    POP         EBP
+    RET         20
+
+calSumAverage ENDP
+
+;============================================
+
+
 
 END main
