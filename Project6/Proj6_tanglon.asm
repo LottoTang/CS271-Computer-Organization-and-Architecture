@@ -1,7 +1,7 @@
 TITLE String Primitives and Macros     (Proj6_tanglon.asm)
 
 ; Author: Long To Lotto Tang
-; Last Modified: 6/8/2022
+; Last Modified: 12/8/2022
 ; OSU email address: tanglon@oregonstate.edu
 ; Course number/section:   CS271 Section 400
 ; Project Number: 6                Due Date: 12/8/2022
@@ -140,6 +140,9 @@ averageMessage1     BYTE    "The truncated average is: ",  0
 sum                 SDWORD  0
 average             SDWORD  0
 
+; for farewell
+bye1				BYTE	"Thanks for playing! ",  0
+
 .code
 main PROC
 
@@ -195,21 +198,26 @@ main PROC
 	; ------------------------------------------------
 	; Display sum and average
 
-	mdisplayString	OFFSET	sumMessage1
+	mDisplayString	OFFSET	sumMessage1
 	PUSH		OFFSET	sign
 	PUSH		OFFSET	sumString
 	PUSH		OFFSET	sum
 	CALL		WriteVal
-	mdisplayString	OFFSET	sumString
+	mDisplayString	OFFSET	sumString
 
 	CALL		CrLF
 
-	mdisplayString	OFFSET	averageMessage1
+	mDisplayString	OFFSET	averageMessage1
 	PUSH		OFFSET	sign
 	PUSH		OFFSET	avgString
 	PUSH		OFFSET	average
 	CALL		WriteVal
-	mdisplayString	OFFSET	avgString
+	mDisplayString	OFFSET	avgString
+
+	; ------------------------------------------------
+	; Farewell
+	PUSH		OFFSET	bye1
+	CALL		farewell
 
 
 	Invoke		ExitProcess,	0											; EXIT TO OS
@@ -476,6 +484,9 @@ WriteVal PROC
 	STOSB																	; STORE THE VALUE IN AL TO EDI
 	LOOP		_pop2String
 
+	MOV			AL,		0
+	STOSB
+
 	MOV			EDI,	[EDI]
 
 	POPAD
@@ -487,8 +498,8 @@ WriteVal ENDP
 ;============================================
 calSumAverage PROC
 
-; 1) To calculate the sum and average from userVal
-; 2) Display the results via mDisplayString
+; 1) To display the sum and average
+; 2) Display called by mDisplayString
 
 ; preconditions: setup stack frame and access parameters on runtime stack using Base+Offset; array in Register Indirect accessing
 ; postconditions: variable sum will be modified
@@ -552,7 +563,7 @@ displayArray PROC
 
 	MOV			ECX,	MAX_INPUT
 	MOV			EDX,	[EBP+24]
-	mdisplayString	[EBP+20]
+	mDisplayString	[EBP+20]
 	CALL		CrLF
 
 	_outputString:
@@ -560,10 +571,10 @@ displayArray PROC
 	PUSH		[EBP+12]
 	PUSH		EDX
 	CALL		WriteVal
-	mdisplayString	[EBP+12]
+	mDisplayString	[EBP+12]
 	CMP			ECX,	1
-	JE			_outputStringCotd
-	mdisplayString	[EBP+8]
+	JE			_outputStringCotd											; EDGE CASE, NO ", " FOR THE LAST ITEM
+	mDisplayString	[EBP+8]
 
 	_outputStringCotd:
 	ADD			EDX,	4
@@ -576,5 +587,32 @@ displayArray PROC
 	RET			20
 
 displayArray ENDP
+
 ;============================================
+farewell PROC
+
+; 1) To display the farewell message
+
+; preconditions: setup stack frame and access parameters on runtime stack
+; postconditions: N/A
+; receives: 1) push offset bye1	[EBP+8]
+;
+; returns: 1) the string output to console
+;============================================
+
+	PUSH		EBP
+	MOV			EBP,	ESP
+
+	CALL		CrLF
+
+	CALL		CrLF
+	mDisplayString	[EBP+8]
+
+	POP			EBP
+	RET			4
+
+farewell ENDP
+
+;============================================
+
 END main
